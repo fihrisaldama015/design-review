@@ -81,9 +81,37 @@ test("an origin added later is allowed after the cache expires", async () => {
   }
 });
 
+test("Origin: null gets no CORS headers", async () => {
+  const res = await preflight("null");
+  assert.equal(res.status, 204);
+  assert.equal(res.headers["access-control-allow-origin"], undefined);
+});
+
+test("preflight to a nonexistent route is 204 without CORS headers for an unlisted origin", async () => {
+  const res = await request(app).options("/api/v1/nope/at/all").set("Origin", "https://evil.example")
+    .set("Access-Control-Request-Method", "GET");
+  assert.equal(res.status, 204);
+  assert.equal(res.headers["access-control-allow-origin"], undefined);
+});
+
 test("restoreUrl rebuilds the API path and keeps other query params", () => {
   assert.equal(restoreUrl("/api/index?path=me"), "/api/v1/me");
   assert.equal(restoreUrl("/api/index?path=projects/abc/reviews&slug=x&n=2"), "/api/v1/projects/abc/reviews?slug=x&n=2");
   assert.equal(restoreUrl("/api/index"), "/api/v1/");
   assert.equal(restoreUrl("/api/index?path=&a=1"), "/api/v1/?a=1");
+});
+
+test("restoreUrl does not double-decode or reshape the path", () => {
+  assert.equal(restoreUrl("/api/index?path=a%2Fb"), "/api/v1/a/b", "an encoded slash is a separator after decoding");
+  assert.equal(restoreUrl("/api/index?path=a%2Bb"), "/api/v1/a%2Bb");
+  assert.equal(restoreUrl("/api/index?path=a%20b"), "/api/v1/a%20b");
+  assert.equal(restoreUrl("/api/index?path=a+b"), "/api/v1/a%20b");
+  assert.equal(restoreUrl("/api/index?path=a%3Fb%23c"), "/api/v1/a%3Fb%23c");
+  assert.equal(restoreUrl("/api/index?path=x%3Fy/z&q=1"), "/api/v1/x%3Fy/z?q=1");
+});
+
+test("restoreUrl rejects dot segments (null, the handler answers 404)", () => {
+  assert.equal(restoreUrl("/api/index?path=../x"), null);
+  assert.equal(restoreUrl("/api/index?path=a/%2e%2e/b"), null);
+  assert.equal(restoreUrl("/api/index?path=./a"), null);
 });

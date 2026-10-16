@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": { "test": "node --test \"test/**/*.test.mjs\"", "seed": "node scripts/seed.mjs" },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "seed": "node scripts/seed.mjs"
+  },
   "dependencies": {
     "bcryptjs": "2.4.3",
-    "cors": "2.8.5",
     "express": "4.21.2",
     "jsonwebtoken": "9.0.2",
     "mongoose": "8.9.5"

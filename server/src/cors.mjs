@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Project } from "./models.mjs";
 
 const TTL_MS = 60_000;
@@ -10,9 +11,15 @@ export async function allowedOrigins(env) {
   const orgId = env.ORG_ID || "blue-silo";
   const key = `${orgId}|${env.WEB_ORIGIN || ""}`;
   if (cache && cache.key === key && Date.now() - cache.at < TTL_MS) return cache.origins;
-  const rows = await Project.find({ orgId }, { allowedOrigins: 1 }).lean();
-  const origins = new Set(rows.flatMap((p) => p.allowedOrigins || []));
-  if (env.WEB_ORIGIN) origins.add(env.WEB_ORIGIN);
+  const origins = new Set(env.WEB_ORIGIN ? [env.WEB_ORIGIN] : []);
+  // Not configured or DB down: WEB_ORIGIN only, at once (no mongoose buffering), and not cached.
+  if (!env.MONGO_URL || mongoose.connection.readyState !== 1) return origins;
+  try {
+    const rows = await Project.find({ orgId }, { allowedOrigins: 1 }).lean();
+    for (const p of rows) for (const o of p.allowedOrigins || []) origins.add(o);
+  } catch {
+    return origins;
+  }
   cache = { key, at: Date.now(), origins };
   return origins;
 }
@@ -22,7 +29,8 @@ export function corsMiddleware(env) {
   return async (req, res, next) => {
     try {
       const origin = req.get("origin");
-      if (origin && (await allowedOrigins(env)).has(origin)) {
+      const allowed = origin ? (await allowedOrigins(env)).has(origin) : false;
+      if (allowed) {
         res.set("Access-Control-Allow-Origin", origin);
         res.vary("Origin");
         if (req.method === "OPTIONS") {
