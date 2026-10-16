@@ -1,6 +1,7 @@
 import express from "express";
 import { HttpError, authenticate } from "./auth.mjs";
 import { loginRouter, sessionRouter } from "./routes/auth.mjs";
+import { projectsRouter } from "./routes/projects.mjs";
 
 /** Builds the Express app. Does not connect to Mongo; the caller does that. */
 export function createApp({ env }) {
@@ -24,7 +25,8 @@ export function createApp({ env }) {
   api.use(authenticate(env));
   api.use(sessionRouter());
 
-  // MOUNT NEW ROUTERS HERE (Tasks 4-6), e.g. api.use(projectsRouter(env));
+  api.use(projectsRouter(env));
+  // MOUNT NEW ROUTERS HERE (Tasks 5-6), e.g. api.use(reviewsRouter(env));
 
   api.use((req, res, next) => next(new HttpError(404, "No such route.")));
 
