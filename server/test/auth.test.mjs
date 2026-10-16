@@ -109,3 +109,119 @@ test("no SESSION_SECRET is 503", async () => {
   const none = await request(createApp({ env: {} })).get("/api/v1/me");
   assert.equal(none.status, 503);
 });
+
+// ---- review fixes ----
+import { mock } from "node:test";
+import mongoose from "mongoose";
+import { Token, Membership } from "../src/models.mjs";
+import { newProjectToken, canUseProject } from "../src/auth.mjs";
+import { makeProject } from "./helpers.mjs";
+
+const bearer = (t) => ["Authorization", `Bearer ${t}`];
+
+test("valid project token authenticates and updates lastUsedAt", async () => {
+  const project = await makeProject();
+  const { token, hash } = newProjectToken();
+  const doc = await Token.create({ orgId: ORG, projectId: project._id, hash });
+  const probe = createApp({ env });
+  // reach authenticate through the real app: an authenticated unknown route is 404, not 401
+  const res = await request(probe).get("/api/v1/nothing").set(...bearer(token));
+  assert.equal(res.status, 404);
+  const after = await Token.findById(doc._id);
+  assert.ok(after.lastUsedAt);
+  const me = await request(probe).get("/api/v1/me").set(...bearer(token));
+  assert.equal(me.status, 403);
+});
+
+test("revoked token is 401", async () => {
+  const project = await makeProject();
+  const { token, hash } = newProjectToken();
+  await Token.create({ orgId: ORG, projectId: project._id, hash, revokedAt: new Date() });
+  const res = await request(app).get("/api/v1/nothing").set(...bearer(token));
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, "Unknown or revoked project token.");
+  const unknown = await request(app).get("/api/v1/nothing").set(...bearer("drp_unknown"));
+  assert.equal(unknown.status, 401);
+});
+
+test("deleted user's JWT is 401", async () => {
+  const u = await makeAdmin();
+  const { body } = await login(u.email);
+  await User.deleteOne({ _id: u._id });
+  const res = await request(app).get("/api/v1/me").set(...bearer(body.token));
+  assert.equal(res.status, 401);
+});
+
+test("alg none and foreign-secret tokens are 401", async () => {
+  const u = await makeAdmin();
+  const claims = { sub: String(u._id), org: ORG };
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const none = `${b64({ alg: "none", typ: "JWT" })}.${b64(claims)}.`;
+  const other = jwt.sign(claims, "another-secret", { algorithm: "HS256", expiresIn: "1h" });
+  for (const t of [none, other]) {
+    const res = await request(app).get("/api/v1/me").set(...bearer(t));
+    assert.equal(res.status, 401);
+  }
+});
+
+test("valid JWT with a non-ObjectId sub is 401", async () => {
+  const token = jwt.sign({ sub: "not-an-id", org: ORG }, env.SESSION_SECRET, { algorithm: "HS256", expiresIn: "1h" });
+  const res = await request(app).get("/api/v1/me").set(...bearer(token));
+  assert.equal(res.status, 401);
+});
+
+test("invalid JSON is 400 and oversized body is 400", async () => {
+  const bad = await request(app).post("/api/v1/auth/login")
+    .set("Content-Type", "application/json").send("{not json");
+  assert.equal(bad.status, 400);
+  assert.equal(bad.body.error, "Body is not valid JSON.");
+  const big = await request(app).post("/api/v1/auth/login")
+    .set("Content-Type", "application/json").send(JSON.stringify({ email: "x".repeat(1024 * 1024 + 10) }));
+  assert.equal(big.status, 400);
+  assert.equal(big.body.error, "Body is too large (1mb max).");
+});
+
+test("a Mongo network error is 502", async () => {
+  const stub = mock.method(User, "findOne", () => {
+    const e = new Error("connection lost");
+    e.name = "MongoNetworkError";
+    throw e;
+  });
+  try {
+    const res = await login("a@x.io");
+    assert.equal(res.status, 502);
+    assert.equal(res.body.error, "The store failed: connection lost");
+  } finally {
+    stub.mock.restore();
+  }
+});
+
+test("canUseProject: tool, admin, member, non-member", async () => {
+  const [pa, pb] = [await makeProject(), await makeProject()];
+  const tool = { kind: "tool", projectId: String(pa._id), orgId: ORG };
+  assert.equal(canUseProject(tool, pa), true);
+  assert.equal(canUseProject(tool, pb), false);
+  const admin = await makeAdmin();
+  assert.equal(canUseProject({ kind: "user", user: admin }, pb), true);
+  const member = await User.create({ orgId: ORG, email: "m@x.io", role: "member", passwordHash: "h" });
+  await Membership.create({ orgId: ORG, userId: member._id, projectId: pa._id });
+  // go through authenticate so projectIds is preloaded
+  const token = jwt.sign({ sub: String(member._id), org: ORG }, env.SESSION_SECRET, { algorithm: "HS256", expiresIn: "1h" });
+  const { authenticate } = await import("../src/auth.mjs");
+  const req = { get: () => `Bearer ${token}`, path: "/x" };
+  await new Promise((resolve, reject) => authenticate(env)(req, {}, (e) => (e ? reject(e) : resolve())));
+  assert.deepEqual(req.auth.projectIds, [String(pa._id)]);
+  assert.equal(canUseProject(req.auth, pa), true);
+  assert.equal(canUseProject(req.auth, pb), false);
+});
+
+test("tool auth carries orgId", async () => {
+  const project = await makeProject();
+  const { token, hash } = newProjectToken();
+  await Token.create({ orgId: ORG, projectId: project._id, hash });
+  const { authenticate } = await import("../src/auth.mjs");
+  const req = { get: () => `Bearer ${token}`, path: "/x" };
+  await new Promise((resolve, reject) => authenticate(env)(req, {}, (e) => (e ? reject(e) : resolve())));
+  assert.equal(req.auth.orgId, ORG);
+  assert.equal(req.auth.projectId, String(project._id));
+});

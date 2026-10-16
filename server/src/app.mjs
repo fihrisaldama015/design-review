@@ -33,10 +33,14 @@ export function createApp({ env }) {
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, next) => {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    if (err.type === "entity.parse.failed") return res.status(400).json({ error: "The request body is not valid JSON." });
-    if (err.type === "entity.too.large") return res.status(400).json({ error: "The request body is too large." });
-    if (err.name?.startsWith("Mongo") || err.name?.startsWith("Mongoose")) {
+    // body-parser errors carry err.status (400/413), so check err.type first.
+    if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Body is not valid JSON." });
+    if (err.type === "entity.too.large") return res.status(400).json({ error: "Body is too large (1mb max)." });
+    if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    if (err.name === "ValidationError" || err.name === "CastError") {
+      return res.status(400).json({ error: `Invalid data: ${err.message}` });
+    }
+    if (err.name?.startsWith("Mongo")) { // Mongo*, Mongoose* (network, driver, server selection)
       return res.status(502).json({ error: `The store failed: ${err.message}` });
     }
     console.error(err);

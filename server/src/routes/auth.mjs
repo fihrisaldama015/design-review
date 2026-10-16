@@ -1,6 +1,10 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { HttpError, checkPassword, hashPassword, signSession, userView } from "../auth.mjs";
 import { User } from "../models.mjs";
+
+// Compared against when the email is unknown, so both failures take similar time.
+const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 
@@ -12,7 +16,8 @@ export function loginRouter(env) {
     const user = typeof email === "string" && typeof password === "string"
       ? await User.findOne({ orgId: env.ORG_ID || "blue-silo", email: email.trim().toLowerCase() })
       : null;
-    if (!user || !(await checkPassword(password, user.passwordHash))) {
+    const ok = await checkPassword(typeof password === "string" ? password : "", user ? user.passwordHash : DUMMY_HASH);
+    if (!user || !ok) {
       throw new HttpError(401, "Wrong email or password.");
     }
     res.json({ token: signSession(user, env), user: userView(user) });

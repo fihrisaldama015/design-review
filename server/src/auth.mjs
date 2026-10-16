@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import { Token, User, Membership } from "./models.mjs";
 
 const TOKEN_PREFIX = "drp_";
@@ -10,7 +11,7 @@ export const hashPassword = (p) => bcrypt.hash(p, 10);
 export const checkPassword = (p, hash) => bcrypt.compare(p, hash);
 
 export function signSession(user, env) {
-  return jwt.sign({ sub: String(user._id), org: user.orgId }, env.SESSION_SECRET, { expiresIn: "8h" });
+  return jwt.sign({ sub: String(user._id), org: user.orgId }, env.SESSION_SECRET, { algorithm: "HS256", expiresIn: "8h" });
 }
 
 export const hashToken = (t) => crypto.createHash("sha256").update(t).digest("hex");
@@ -41,18 +42,23 @@ export function authenticate(env) {
           { lastUsedAt: new Date() },
         );
         if (!tok) throw new HttpError(401, "Unknown or revoked project token.");
-        req.auth = { kind: "tool", projectId: String(tok.projectId) };
+        req.auth = { kind: "tool", projectId: String(tok.projectId), orgId: tok.orgId };
         return next();
       }
       let claims;
       try {
-        claims = jwt.verify(bearer, env.SESSION_SECRET);
+        claims = jwt.verify(bearer, env.SESSION_SECRET, { algorithms: ["HS256"] });
       } catch {
         throw new HttpError(401, "Your session expired. Log in again.");
       }
+      if (!mongoose.isValidObjectId(claims.sub)) throw new HttpError(401, "Your session expired. Log in again.");
       const user = await User.findOne({ _id: claims.sub, orgId: claims.org });
       if (!user) throw new HttpError(401, "Your session expired. Log in again.");
       req.auth = { kind: "user", user };
+      if (user.role !== "admin") {
+        const rows = await Membership.find({ userId: user._id }, { projectId: 1 }).lean();
+        req.auth.projectIds = rows.map((m) => String(m.projectId));
+      }
       if (user.mustChangePassword && !PUBLIC_WHILE_LOCKED.has(req.path)) {
         throw new HttpError(403, "Change your password first.");
       }
@@ -63,8 +69,9 @@ export function authenticate(env) {
   };
 }
 
-export async function canUseProject(auth, project) {
-  if (auth.kind === "tool") return auth.projectId === String(project._id);
+export function canUseProject(auth, project) {
+  const id = String(project._id);
+  if (auth.kind === "tool") return String(auth.projectId) === id;
   if (auth.user.role === "admin") return true;
-  return !!(await Membership.exists({ userId: auth.user._id, projectId: project._id }));
+  return (auth.projectIds || []).includes(id);
 }
