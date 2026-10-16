@@ -1,0 +1,12 @@
+/* Design tokens from Figma, always on. Dark mode: <html data-theme="dark">. */
+@import "./tokens/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  background-color: rgb(var(--theme-color-background-main-background));
+  color: rgb(var(--theme-color-text-default));
+}

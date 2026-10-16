@@ -1,0 +1,51 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Guide/Introduction" />
+
+# Equipment Loan Tracker — component library
+
+This Storybook is the **single source of truth for the UI** of this app. Build
+every page from these components. Do not write a button, input, badge, table,
+modal or toast by hand.
+
+## Rules
+
+1. **Read Storybook first** (MCP `docs-list`, then `docs-show`) before you build a
+   page. Never guess a prop, an import path or a class.
+2. **Import from `components/<name>`**, for example
+   `import { Button } from "components/button"`.
+3. **Design tokens from Figma.** Colours, type, spacing, radius and shadows come
+   from Graphene (see **Foundations**). Use the semantic classes first
+   (`text-default`, `bg-surface`, `border-default`, `rounded-default`,
+   `p-page-padding`), then the scale (`p-4`, `rounded-lg`). No hex values, no
+   arbitrary values. On a page, use Tailwind only for layout (flex, grid, gap,
+   width, margin), never to restyle a component. _Experiment branch: the existing
+   components still use the plain palette (indigo, slate); they move to SHIELD next._
+4. **One filled primary button per view** (`status="primary"`). Use `kind="outlined"`
+   for the other actions, `kind="text"` for Cancel, `status="danger"` for destructive
+   actions.
+5. **Meaning decides the colour.** Status badges: success = available,
+   info = on loan, warning = due soon, danger = overdue, neutral = retired.
+6. **Icons:** lucide-react only (size 16 in buttons and menus).
+7. **Words:** sentence case ("Add equipment", "Mark returned"). Dates as
+   `5 Oct 2026`. Say "equipment", "loan", "borrower".
+8. Story code may contain `fn()` and `useArgs()`. Those are Storybook helpers: copy the JSX, not them.
+9. If nothing fits, **ask before adding a new component** — extend an existing
+   one with a prop when you can.
+
+## What is here
+
+| Group | Components |
+|---|---|
+| Actions | Button, IconButton |
+| Forms | Field (the label, hint and error around a control), Input, Textarea, Select, DatePicker, DateRangePicker, SearchInput, Checkbox, Toggle |
+| Data | Card, StatCard, DataTable, Pagination, Badge, Avatar |
+| Feedback | Alert, Toast (`useToast()`), EmptyState, Spinner, Skeleton, ProgressBar |
+| Overlays | Modal, ConfirmDialog, Drawer, Tooltip, DropdownMenu |
+| Navigation | PageHeader, Tabs, Stepper |
+
+Not built yet (still inline in the pages): Popover with filters, Timeline,
+FileDropzone, PhotoViewer, CommandPalette, Notifications. Page patterns and
+design tokens come in later stages.
+
+See **Guide / Component choices** for why each variant was chosen.

@@ -1,1 +1,30 @@
-{ "name": "design-review-web", "private": true, "version": "0.0.0" }
+{
+  "name": "design-review-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "rsbuild dev",
+    "build": "rsbuild build",
+    "preview": "rsbuild preview"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.13",
+    "formik": "^2.4.6",
+    "lucide-react": "^0.465.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.3",
+    "tailwind-merge": "^2.6.1",
+    "yup": "^1.5.0"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^2.0.6",
+    "@rsbuild/plugin-react": "^2.0.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3"
+  }
+}
