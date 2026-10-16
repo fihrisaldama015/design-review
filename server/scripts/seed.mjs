@@ -12,6 +12,11 @@ for (const [name, value] of Object.entries({ MONGO_URL, SEED_ADMIN_EMAIL, SEED_A
   }
 }
 
+if (SEED_ADMIN_PASSWORD.length < 10) {
+  console.error("SEED_ADMIN_PASSWORD must be at least 10 characters.");
+  process.exit(1);
+}
+
 await connect(MONGO_URL);
 await ensureIndexes();
 const email = SEED_ADMIN_EMAIL.trim().toLowerCase();

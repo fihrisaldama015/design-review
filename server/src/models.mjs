@@ -27,7 +27,7 @@ const tokenSchema = new Schema({
 
 const userSchema = new Schema({
   orgId: org,
-  email: { type: String, required: true },
+  email: { type: String, required: true, lowercase: true, trim: true },
   name: String,
   role: { type: String, enum: ["admin", "member"], required: true },
   passwordHash: { type: String, required: true },
