@@ -148,3 +148,24 @@ test("adding a member twice keeps one membership and no new tempPassword", async
   assert.equal(del.status, 204);
   assert.equal(await Membership.countDocuments({ userId: u._id }), 0);
 });
+
+test("reviewUrl and storybookUrl must be http(s) URLs; null or empty clears them", async () => {
+  const admin = await makeAdmin();
+  for (const field of ["reviewUrl", "storybookUrl"]) {
+    const bad = await request(app).post("/api/v1/projects").set(as(admin)).send(body({ [field]: "javascript:alert(1)" }));
+    assert.equal(bad.status, 400);
+    assert.equal(bad.body.error, `${field} must be an http(s) URL.`);
+  }
+  const created = await request(app).post("/api/v1/projects").set(as(admin))
+    .send(body({ reviewUrl: "https://app.example.com/review", storybookUrl: "http://localhost:6006" }));
+  assert.equal(created.status, 201);
+  for (const field of ["reviewUrl", "storybookUrl"]) {
+    const bad = await request(app).patch(`/api/v1/projects/${created.body.key}`).set(as(admin)).send({ [field]: "javascript:alert(1)" });
+    assert.equal(bad.status, 400);
+    assert.equal(bad.body.error, `${field} must be an http(s) URL.`);
+  }
+  const cleared = await request(app).patch(`/api/v1/projects/${created.body.key}`).set(as(admin)).send({ reviewUrl: null, storybookUrl: "" });
+  assert.equal(cleared.status, 200);
+  assert.ok(!cleared.body.reviewUrl);
+  assert.ok(!cleared.body.storybookUrl);
+});

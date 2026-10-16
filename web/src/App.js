@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { KeyRound, LogOut } from "lucide-react";
 import { Button } from "components/button";
 import { clearSession, getSession } from "app/api";
 import Login from "pages/Login";
@@ -25,6 +25,7 @@ function Shell() {
         </nav>
         <div className="flex items-center gap-3">
           <span className="typo-regular-text-sm text-caption">{session?.user?.name} ({session?.user?.email})</span>
+          <Button as={Link} to="/password" kind="text" size="sm" prefixIcon={<KeyRound />}>Change password</Button>
           <Button kind="text" size="sm" prefixIcon={<LogOut />} onClick={logout}>Log out</Button>
         </div>
       </header>

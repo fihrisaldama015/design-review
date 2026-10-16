@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, History as HistoryIcon, Plus, UserPlus } from 
 import { Alert } from "components/alert";
 import { Badge } from "components/badge";
 import { Button } from "components/button";
+import { ConfirmDialog } from "components/confirm-dialog";
 import { Card } from "components/card";
 import { DataTable } from "components/data-table";
 import { EmptyState } from "components/empty-state";
@@ -105,13 +106,20 @@ function Tokens({ project }) {
       setBusy(false);
     }
   };
-  const revoke = async (id) => {
+  const [toRevoke, setToRevoke] = useState(null);
+  const [acting, setActing] = useState(false);
+  const revoke = async () => {
+    setActing(true);
     setFormError("");
     try {
-      await api("DELETE", `/projects/${project.key}/tokens/${id}`);
+      await api("DELETE", `/projects/${project.key}/tokens/${toRevoke.id}`);
+      setToRevoke(null);
       reload();
     } catch (err) {
+      setToRevoke(null);
       setFormError(err.message);
+    } finally {
+      setActing(false);
     }
   };
 
@@ -124,14 +132,14 @@ function Tokens({ project }) {
       key: "actions",
       header: "",
       align: "right",
-      render: (t) => !t.revokedAt && <Button size="sm" kind="outlined" status="danger" onClick={() => revoke(t.id)}>Revoke</Button>,
+      render: (t) => !t.revokedAt && <Button size="sm" kind="outlined" status="danger" onClick={() => setToRevoke(t)}>Revoke</Button>,
     },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       {(error || formError) && <Alert status="danger" kind="outlined">{error || formError}</Alert>}
-      {created && <SecretAlert title={`New token: ${created.label}`} secret={created.token} onDismiss={() => setCreated(null)} />}
+      {created && <SecretAlert title={`New token: ${created.label}`} secret={created.token} noun="token" onDismiss={() => setCreated(null)} />}
       <Card title="Create a token" description="The design tool uses a token to publish reviews to this project.">
         <form onSubmit={create} className="flex max-w-xl items-end gap-3">
           <Field label="Label" required className="flex-1">
@@ -145,6 +153,16 @@ function Tokens({ project }) {
           <DataTable columns={columns} rows={data} empty={<EmptyState title="No tokens yet" description="Create a token to let the design tool publish." />} />
         </Card>
       )}
+      <ConfirmDialog
+        open={!!toRevoke}
+        onClose={() => setToRevoke(null)}
+        onConfirm={revoke}
+        title="Revoke this token?"
+        description={`The token "${toRevoke?.label}" stops working at once. This cannot be undone.`}
+        confirmLabel="Revoke token"
+        tone="danger"
+        loading={acting}
+      />
     </div>
   );
 }
@@ -174,27 +192,34 @@ function Members({ project }) {
       setBusy(false);
     }
   };
-  const remove = async (id) => {
+  const [toRemove, setToRemove] = useState(null);
+  const [acting, setActing] = useState(false);
+  const remove = async () => {
+    setActing(true);
     setFormError("");
     try {
-      await api("DELETE", `/projects/${project.key}/members/${id}`);
+      await api("DELETE", `/projects/${project.key}/members/${toRemove.id}`);
+      setToRemove(null);
       reload();
     } catch (err) {
+      setToRemove(null);
       setFormError(err.message);
+    } finally {
+      setActing(false);
     }
   };
 
   const columns = [
     { key: "name", header: "Name" },
     { key: "email", header: "Email" },
-    { key: "actions", header: "", align: "right", render: (m) => <Button size="sm" kind="outlined" status="danger" onClick={() => remove(m.id)}>Remove</Button> },
+    { key: "actions", header: "", align: "right", render: (m) => <Button size="sm" kind="outlined" status="danger" onClick={() => setToRemove(m)}>Remove</Button> },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       {(error || formError) && <Alert status="danger" kind="outlined">{error || formError}</Alert>}
       {temp?.password && (
-        <SecretAlert title={`Temporary password for ${temp.email}`} secret={temp.password} onDismiss={() => setTemp(null)} />
+        <SecretAlert title={`Temporary password for ${temp.email}`} secret={temp.password} noun="password" onDismiss={() => setTemp(null)} />
       )}
       {temp?.existing && (
         <Alert status="info" kind="outlined" onDismiss={() => setTemp(null)}>{temp.existing} already had an account and now has access to this project.</Alert>
@@ -219,6 +244,16 @@ function Members({ project }) {
           <DataTable columns={columns} rows={data} empty={<EmptyState title="No members yet" description="Add the people who review this project." />} />
         </Card>
       )}
+      <ConfirmDialog
+        open={!!toRemove}
+        onClose={() => setToRemove(null)}
+        onConfirm={remove}
+        title="Remove this member?"
+        description={`${toRemove?.name} will no longer see this project. Their account is kept.`}
+        confirmLabel="Remove member"
+        tone="danger"
+        loading={acting}
+      />
     </div>
   );
 }

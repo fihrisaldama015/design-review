@@ -5,7 +5,7 @@ import { Alert } from "components/alert";
 import { Button } from "components/button";
 
 /** A secret (token or temporary password) shown once, with a Copy button. */
-export function SecretAlert({ title, secret, onDismiss }) {
+export function SecretAlert({ title, secret, noun, onDismiss }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -28,13 +28,15 @@ export function SecretAlert({ title, secret, onDismiss }) {
       }
     >
       <code data-testid="secret" className="break-all">{secret}</code>
-      <p>You will not see this {title.toLowerCase().includes("token") ? "token" : "password"} again.</p>
+      <p>You will not see this {noun} again.</p>
     </Alert>
   );
 }
 SecretAlert.propTypes = {
   /** What was created, e.g. "New token". */
   title: PropTypes.string.isRequired,
+  /** What the secret is, used in "You will not see this {noun} again." */
+  noun: PropTypes.oneOf(["token", "password"]).isRequired,
   /** The secret to show. */
   secret: PropTypes.string.isRequired,
   /** Called when the alert is dismissed. */

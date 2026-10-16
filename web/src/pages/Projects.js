@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FolderOpen, Plus } from "lucide-react";
+import { ExternalLink, FolderOpen, Plus } from "lucide-react";
 import { Alert } from "components/alert";
 import { Button } from "components/button";
 import { Card } from "components/card";
@@ -65,6 +65,26 @@ export default function Projects() {
     { key: "name", header: "Name" },
     { key: "key", header: "Key" },
     { key: "origins", header: "Allowed origins", render: (p) => p.allowedOrigins.join(", ") || "None" },
+    {
+      key: "review",
+      header: "",
+      align: "right",
+      render: (p) =>
+        p.reviewUrl && (
+          <Button
+            as="a"
+            href={p.reviewUrl}
+            target="_blank"
+            rel="noreferrer"
+            kind="text"
+            size="sm"
+            suffixIcon={<ExternalLink />}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Open the review page
+          </Button>
+        ),
+    },
   ];
 
   return (

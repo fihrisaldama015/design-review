@@ -37,8 +37,18 @@ function isOrigin(o) {
 
 const optString = (v, name) => {
   if (v === undefined) return undefined;
+  if (v === null) return ""; // null clears the field
   if (typeof v !== "string") throw new HttpError(400, `${name} must be a string.`);
   return v;
+};
+
+const httpUrl = (v, name) => {
+  const s = optString(v, name);
+  if (!s) return s; // undefined (unchanged) or "" (cleared)
+  let ok = false;
+  try { ok = ["http:", "https:"].includes(new URL(s).protocol); } catch { /* not a URL */ }
+  if (!ok) throw new HttpError(400, `${name} must be an http(s) URL.`);
+  return s;
 };
 
 function readFields(b, { partial }) {
@@ -49,7 +59,7 @@ function readFields(b, { partial }) {
     out.name = name.trim();
   }
   for (const f of ["figmaFileKey", "storybookUrl", "reviewUrl"]) {
-    const v = optString(b[f], f);
+    const v = f === "figmaFileKey" ? optString(b[f], f) : httpUrl(b[f], f);
     if (v !== undefined) out[f] = v;
   }
   if (b.allowedOrigins !== undefined || !partial) {
