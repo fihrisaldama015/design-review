@@ -62,7 +62,7 @@ const reviewSchema = new Schema({
   usage: { type: Schema.Types.Mixed, strict: false },
   usageHistory: { type: Schema.Types.Mixed, strict: false },
   migrateBy: { type: Schema.Types.Mixed, strict: false },
-}, { ...opts, strict: false });
+}, { ...opts, strict: false, minimize: false }); // minimize: false keeps empty answers {} (reviewLogic reads doc.answers[id])
 reviewSchema.index({ projectId: 1, slug: 1 }, { unique: true });
 
 export const Project = mongoose.model("Project", projectSchema, "projects");

@@ -5,7 +5,7 @@ import { HttpError, hashPassword, newProjectToken, userView } from "../auth.mjs"
 import { Project, Token, User, Membership } from "../models.mjs";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
-const KEY_RE = /^[a-z0-9-]{2,40}$/;
+export const KEY_RE = /^[a-z0-9-]{2,40}$/;
 // No 0/O/1/l/I look-alikes.
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 const generatePassword = (len = 14) =>
@@ -21,7 +21,14 @@ function requireAdmin(req) {
     throw new HttpError(403, "Only an admin can do this.");
   }
 }
-const orgOf = (req, env) => (req.auth.kind === "tool" ? req.auth.orgId : req.auth.user.orgId || env.ORG_ID || "blue-silo");
+export const orgOf = (req, env) => (req.auth.kind === "tool" ? req.auth.orgId : req.auth.user.orgId || env.ORG_ID || "blue-silo");
+
+/** Org-scoped project lookup by key; 404 when the key is malformed or unknown. */
+export async function loadProject(req, env, key) {
+  const project = KEY_RE.test(key) ? await Project.findOne({ orgId: orgOf(req, env), key }) : null;
+  if (!project) throw new HttpError(404, "No such project.");
+  return project;
+}
 
 function isOrigin(o) {
   if (typeof o !== "string") return false;
@@ -75,9 +82,7 @@ export function projectsRouter(env) {
   r.param("project", (req, res, next, key) => {
     (async () => {
       requireAdmin(req);
-      const project = KEY_RE.test(key) ? await Project.findOne({ orgId: orgOf(req, env), key }) : null;
-      if (!project) throw new HttpError(404, "No such project.");
-      req.project = project;
+      req.project = await loadProject(req, env, key);
     })().then(() => next(), next);
   });
 

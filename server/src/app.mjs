@@ -1,12 +1,15 @@
 import express from "express";
 import { HttpError, authenticate } from "./auth.mjs";
 import { loginRouter, sessionRouter } from "./routes/auth.mjs";
+import { reviewsRouter } from "./routes/reviews.mjs";
 import { projectsRouter } from "./routes/projects.mjs";
 
 /** Builds the Express app. Does not connect to Mongo; the caller does that. */
 export function createApp({ env }) {
   const app = express();
   const api = express.Router();
+
+  api.use((req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 
   api.use(express.json({ limit: "1mb" }));
 
@@ -25,8 +28,10 @@ export function createApp({ env }) {
   api.use(authenticate(env));
   api.use(sessionRouter());
 
+  // Reviews first: members and tools must reach them; projectsRouter's admin guard covers all /projects/*.
+  api.use(reviewsRouter(env));
   api.use(projectsRouter(env));
-  // MOUNT NEW ROUTERS HERE (Tasks 5-6), e.g. api.use(reviewsRouter(env));
+  // MOUNT NEW ROUTERS HERE (Task 6), e.g. api.use(otherRouter(env));
 
   api.use((req, res, next) => next(new HttpError(404, "No such route.")));
 
