@@ -6,7 +6,7 @@ import { connect } from "../src/db.mjs";
 import { ensureIndexes } from "../src/models.mjs";
 import { createApp } from "../src/app.mjs";
 import { clearOriginCache } from "../src/cors.mjs";
-import { restoreUrl } from "../../api/index.mjs";
+import { restoreUrl, corsFallback } from "../../api/index.mjs";
 
 const env = { SESSION_SECRET: "test-secret", MONGO_URL: "mongodb://unused", ORG_ID: ORG, WEB_ORIGIN: "https://web.example" };
 let db, app;
@@ -114,4 +114,21 @@ test("restoreUrl rejects dot segments (null, the handler answers 404)", () => {
   assert.equal(restoreUrl("/api/index?path=../x"), null);
   assert.equal(restoreUrl("/api/index?path=a/%2e%2e/b"), null);
   assert.equal(restoreUrl("/api/index?path=./a"), null);
+});
+
+test("restoreUrl passes an already-real /api/v1 url through unchanged, query included", () => {
+  assert.equal(restoreUrl("/api/v1/me"), "/api/v1/me");
+  assert.equal(restoreUrl("/api/v1/projects/p/reviews?x=1&y=a%20b"), "/api/v1/projects/p/reviews?x=1&y=a%20b");
+  assert.equal(restoreUrl("/api/v1"), "/api/v1");
+  // with a path parameter it is the rewrite shape and is rebuilt as before
+  assert.equal(restoreUrl("/api/v1/x?path=me"), "/api/v1/me");
+});
+
+test("corsFallback allows only WEB_ORIGIN when the app never ran", () => {
+  const set = {};
+  const res = { setHeader: (k, v) => { set[k] = v; } };
+  corsFallback({ headers: { origin: "https://evil.example" } }, res, { WEB_ORIGIN: "https://web.example" });
+  assert.deepEqual(set, {});
+  corsFallback({ headers: { origin: "https://web.example" } }, res, { WEB_ORIGIN: "https://web.example" });
+  assert.equal(set["Access-Control-Allow-Origin"], "https://web.example");
 });

@@ -36,7 +36,7 @@ export function sessionRouter() {
     }
     const user = req.auth.user;
     if (typeof current !== "string" || !(await checkPassword(current, user.passwordHash))) {
-      throw new HttpError(401, "Wrong current password.");
+      throw new HttpError(400, "Wrong current password.");
     }
     user.passwordHash = await hashPassword(next);
     user.mustChangePassword = false;

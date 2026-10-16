@@ -229,3 +229,25 @@ test("racing writes never lose an audit entry (same-hash republish vs decision, 
   }
   void conflicts;
 });
+
+test("a date-only change through the route creates a new audit entry and bumps the version; history shows the date", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p, { name: "Dina" });
+  await put(p, token);
+  const id = "removed-prop:searchable";
+  const dec = (v, date) => request(app).post(url(p, "select", "/decision")).set(sess(rev)).send({ version: v, answers: { [id]: "keep-deprecated" }, migrateBy: { [id]: date } });
+  const first = await dec(1, "2026-12-01");
+  assert.equal(first.status, 200);
+  assert.deepEqual(first.body.audit.at(-1).migrateBy, { [id]: "2026-12-01" });
+  const second = await dec(first.body.version, "2027-01-15");
+  assert.equal(second.status, 200);
+  assert.equal(second.body.version, first.body.version + 1);
+  assert.equal(second.body.audit.length, first.body.audit.length + 1);
+  assert.deepEqual(second.body.audit.at(-1).changes, { [id]: "keep-deprecated" });
+  assert.equal(second.body.migrateBy[id], "2027-01-15");
+  const same = await dec(second.body.version, "2027-01-15");
+  assert.equal(same.body.version, second.body.version);
+  const hist = await request(app).get(`/api/v1/projects/${p.key}/history`).set(sess(rev));
+  assert.deepEqual(hist.body[0].migrateBy, { [id]: "2027-01-15" });
+});

@@ -169,3 +169,15 @@ test("reviewUrl and storybookUrl must be http(s) URLs; null or empty clears them
   assert.ok(!cleared.body.reviewUrl);
   assert.ok(!cleared.body.storybookUrl);
 });
+
+test("an origin added by create or PATCH works at once (origin cache cleared)", async () => {
+  const { allowedOrigins } = await import("../src/cors.mjs");
+  const admin = await makeAdmin();
+  const e = { ...env, MONGO_URL: "mongodb://unused" };
+  await allowedOrigins(e); // fills the cache
+  const b = body({ allowedOrigins: ["https://fresh-one.example.com"] });
+  await request(app).post("/api/v1/projects").set(as(admin)).send(b).expect(201);
+  assert.ok((await allowedOrigins(e)).has("https://fresh-one.example.com"));
+  await request(app).patch(`/api/v1/projects/${b.key}`).set(as(admin)).send({ allowedOrigins: ["https://fresh-two.example.com"] }).expect(200);
+  assert.ok((await allowedOrigins(e)).has("https://fresh-two.example.com"));
+});

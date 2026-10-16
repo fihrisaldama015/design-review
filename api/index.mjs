@@ -10,12 +10,23 @@ import { createApp } from "../server/src/app.mjs";
  */
 export function restoreUrl(reqUrl) {
   const url = new URL(reqUrl, "http://localhost");
+  // Already the real path (a rewrite that did not run, or a direct call): pass it through, query string and all.
+  if ((url.pathname === "/api/v1" || url.pathname.startsWith("/api/v1/")) && !url.searchParams.has("path")) return reqUrl;
   const path = url.searchParams.get("path") ?? "";
   url.searchParams.delete("path");
   const segments = path.split("/");
   if (segments.some((x) => x === "." || x === "..")) return null;
   const rest = url.searchParams.toString();
   return `/api/v1/${segments.map(encodeURIComponent).join("/")}${rest ? `?${rest}` : ""}`;
+}
+
+/** The app (and its CORS middleware) never ran: allow WEB_ORIGIN so the browser shows the real message. */
+export function corsFallback(req, res, env) {
+  const origin = req.headers?.origin;
+  if (origin && env.WEB_ORIGIN && origin === env.WEB_ORIGIN) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
 }
 
 let app = null;
@@ -35,6 +46,7 @@ export default async function handler(req, res) {
   try {
     await ready;
   } catch (e) {
+    corsFallback(req, res, process.env);
     return res.status(502).json({ error: `The store failed: ${e.message}` });
   }
   const url = restoreUrl(req.url);

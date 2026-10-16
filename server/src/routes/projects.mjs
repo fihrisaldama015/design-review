@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { Router } from "express";
 import mongoose from "mongoose";
 import { HttpError, hashPassword, newProjectToken, userView } from "../auth.mjs";
+import { clearOriginCache } from "../cors.mjs";
 import { Project, Token, User, Membership } from "../models.mjs";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
@@ -121,6 +122,7 @@ export function projectsRouter(env) {
       if (e.code === 11000) throw new HttpError(409, "A project with this key already exists.");
       throw e;
     }
+    clearOriginCache(); // a new origin works at once, not after the 60 s cache
     res.status(201).json(projectView(project));
   }));
 
@@ -128,6 +130,7 @@ export function projectsRouter(env) {
     const fields = readFields(req.body || {}, { partial: true });
     req.project.set(fields);
     await req.project.save();
+    clearOriginCache();
     res.json(projectView(req.project));
   }));
 

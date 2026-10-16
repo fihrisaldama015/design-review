@@ -45,6 +45,8 @@ export function authenticate(env) {
         req.auth = { kind: "tool", projectId: String(tok.projectId), orgId: tok.orgId };
         return next();
       }
+      // Not a project token and not shaped like a JWT (three base64url parts): a stale key or a typo, not an expired session.
+      if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(bearer)) throw new HttpError(401, "Unknown or revoked project token.");
       let claims;
       try {
         claims = jwt.verify(bearer, env.SESSION_SECRET, { algorithms: ["HS256"] });

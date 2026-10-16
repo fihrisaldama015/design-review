@@ -70,7 +70,8 @@ test("password change clears mustChangePassword", async () => {
   assert.equal(short.status, 400);
   const wrong = await request(app).post("/api/v1/auth/password").set(...auth)
     .send({ current: "bad", next: "a-new-password-1" });
-  assert.equal(wrong.status, 401);
+  assert.equal(wrong.status, 400);
+  assert.equal(wrong.body.error, "Wrong current password.");
   const ok = await request(app).post("/api/v1/auth/password").set(...auth)
     .send({ current: "password-12345", next: "a-new-password-1" });
   assert.equal(ok.status, 204);
@@ -224,4 +225,32 @@ test("tool auth carries orgId", async () => {
   await new Promise((resolve, reject) => authenticate(env)(req, {}, (e) => (e ? reject(e) : resolve())));
   assert.equal(req.auth.orgId, ORG);
   assert.equal(req.auth.projectId, String(project._id));
+});
+
+test("a bearer that is neither drp_ nor JWT-shaped is a project token problem, not an expired session", async () => {
+  for (const t of ["old-api-key-123", "a.b", "a.b.c.d"]) {
+    const res = await request(app).get("/api/v1/me").set(...bearer(t));
+    assert.equal(res.status, 401, t);
+    assert.equal(res.body.error, "Unknown or revoked project token.", t);
+  }
+});
+
+test("a well-formed but invalid JWT keeps the session expired text", async () => {
+  const other = jwt.sign({ sub: "x", org: ORG }, "another-secret", { algorithm: "HS256", expiresIn: "1h" });
+  const res = await request(app).get("/api/v1/me").set(...bearer(other));
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, "Your session expired. Log in again.");
+});
+
+test("a DB failure is a 502 that still carries the CORS headers of the request", async () => {
+  const web = createApp({ env: { ...env, WEB_ORIGIN: "https://web.example" } });
+  const u = await makeAdmin();
+  const { body } = await login(u.email);
+  const m = mock.method(User, "findOne", () => { throw Object.assign(new Error("server selection timed out"), { name: "MongoServerSelectionError" }); });
+  try {
+    const res = await request(web).get("/api/v1/me").set(...bearer(body.token)).set("Origin", "https://web.example");
+    assert.equal(res.status, 502);
+    assert.match(res.body.error, /The store failed: server selection timed out/);
+    assert.equal(res.headers["access-control-allow-origin"], "https://web.example");
+  } finally { m.mock.restore(); }
 });

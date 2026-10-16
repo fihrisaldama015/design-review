@@ -258,9 +258,9 @@ function Members({ project }) {
   );
 }
 
-const describeChanges = (changes) =>
+const describeChanges = (changes, migrateBy) =>
   Object.entries(changes || {})
-    .map(([prop, choice]) => `${prop}: ${choice ?? "cleared"}`)
+    .map(([prop, choice]) => `${prop}: ${choice ?? "cleared"}${migrateBy?.[prop] ? ` (migrate by ${migrateBy[prop]})` : ""}`)
     .join(", ");
 
 function History({ project }) {
@@ -269,7 +269,7 @@ function History({ project }) {
     { key: "at", header: "When", render: (h) => when(h.at) },
     { key: "by", header: "Who" },
     { key: "component", header: "Component" },
-    { key: "changes", header: "What", render: (h) => describeChanges(h.changes) || h.action },
+    { key: "changes", header: "What", render: (h) => describeChanges(h.changes, h.migrateBy) || h.action },
   ];
   return (
     <>

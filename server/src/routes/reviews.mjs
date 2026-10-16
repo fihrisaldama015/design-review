@@ -61,8 +61,9 @@ export function reviewsRouter(env) {
   }
 
   const reply = (res, result) => {
-    if (result.ok) return null;
-    return res.status(result.status).json({ error: result.error, ...(result.current ? { current: result.current } : {}) });
+    if (result.ok) return false;
+    res.status(result.status).json({ error: result.error, ...(result.current ? { current: result.current } : {}) });
+    return true;
   };
 
   r.get("/projects/:project/reviews", wrap(async (req, res) => {
@@ -119,7 +120,7 @@ export function reviewsRouter(env) {
     const entries = [];
     for (const row of rows) {
       for (const a of row.audit || []) {
-        entries.push({ component: row.component, slug: row.slug, at: a.at, by: a.by, action: a.action, changes: a.changes });
+        entries.push({ component: row.component, slug: row.slug, at: a.at, by: a.by, action: a.action, changes: a.changes, migrateBy: a.migrateBy });
       }
     }
     entries.reverse(); // stable sort below then puts later-inserted entries first on equal times
