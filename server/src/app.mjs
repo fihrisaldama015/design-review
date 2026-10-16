@@ -1,4 +1,5 @@
 import express from "express";
+import { corsMiddleware } from "./cors.mjs";
 import { HttpError, authenticate } from "./auth.mjs";
 import { loginRouter, sessionRouter } from "./routes/auth.mjs";
 import { reviewsRouter } from "./routes/reviews.mjs";
@@ -8,6 +9,9 @@ import { projectsRouter } from "./routes/projects.mjs";
 export function createApp({ env }) {
   const app = express();
   const api = express.Router();
+
+  // Before authenticate: preflight OPTIONS carries no Authorization.
+  api.use(corsMiddleware(env));
 
   api.use((req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 

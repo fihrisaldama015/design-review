@@ -4,7 +4,8 @@
   "workspaces": ["server", "web"],
   "scripts": {
     "test": "npm -w server test",
-    "dev:server": "npm -w server run dev",
+    "dev:server": "node --env-file=server/.env server/src/listen.mjs",
+    "start:server": "node server/src/listen.mjs",
     "dev:web": "npm -w web run dev",
     "build": "npm -w web run build"
   }
