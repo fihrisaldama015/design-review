@@ -169,3 +169,63 @@ test("history lists published and decided, newest first", async () => {
   assert.deepEqual(res.body[0].changes, { "removed-prop:searchable": "keep" });
   assert.equal(res.body[1].by, "tool");
 });
+
+test("applied needs an answered review and applies once", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p);
+  const apply = () => request(app).post(url(p, "select", "/applied")).set(bearer(token));
+  await put(p, token);
+  const early = await apply();
+  assert.equal(early.status, 409);
+  assert.equal(early.body.error, "The reviewers have not answered every removal yet.");
+  await request(app).post(url(p, "select", "/decision")).set(sess(rev)).send({ version: 1, answers: { "removed-prop:searchable": "keep" } });
+  assert.equal((await apply()).status, 200);
+  const again = await apply();
+  assert.equal(again.status, 409);
+  assert.equal(again.body.error, "This review was already applied.");
+});
+
+test("PUT validates items: no 500 for malformed entries", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  for (const bad of [[1], [{ id: "a" }], [null], "x"]) {
+    const res = await put(p, token, pub({ items: bad }));
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, "items must be an array of { id, kind, ... }.");
+  }
+});
+
+test("long reviewer name is truncated, not rejected", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p, { name: "N".repeat(120) });
+  await put(p, token);
+  const res = await request(app).post(url(p, "select", "/decision")).set(sess(rev)).send({ version: 1, answers: { "removed-prop:searchable": "keep" } });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.audit.at(-1).by.length, 80);
+});
+
+// A same-hash republish keeps `version`; the audit length in the write filter must still stop lost updates.
+// Racing is not deterministic, so assert the invariant over many rounds: every success left exactly one audit entry.
+test("racing writes never lose an audit entry (same-hash republish vs decision, and two republishes)", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p);
+  let conflicts = 0;
+  for (let i = 0; i < 12; i++) {
+    const slug = `race-${i}`;
+    const body = pub({ component: slug });
+    await put(p, token, body, slug);
+    const first = i % 2 === 0
+      ? [put(p, token, body, slug), request(app).post(url(p, slug, "/decision")).set(sess(rev)).send({ version: 1, answers: { "removed-prop:searchable": "keep" } })]
+      : [put(p, token, body, slug), put(p, token, body, slug)];
+    const rs = await Promise.all(first);
+    const ok = rs.filter((r) => r.status < 300).length;
+    conflicts += rs.filter((r) => r.status === 409).length;
+    assert.ok(rs.every((r) => r.status < 300 || r.status === 409), JSON.stringify(rs.map((r) => r.status)));
+    const doc = (await request(app).get(url(p, slug)).set(sess(rev))).body;
+    assert.equal(doc.audit.length, 1 + ok, `round ${i}: ${rs.map((r) => r.status)}`);
+  }
+  void conflicts;
+});

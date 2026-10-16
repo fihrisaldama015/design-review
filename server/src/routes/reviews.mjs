@@ -51,7 +51,8 @@ export function reviewsRouter(env) {
       return res.status(status).json(clean(await Review.findOne({ projectId: scope.projectId, slug }).lean()));
     }
     const row = await Review.findOneAndUpdate(
-      { projectId: scope.projectId, slug, version: prev.version },
+      // every write appends exactly one audit entry, so the length also guards same-version republishes
+      { projectId: scope.projectId, slug, version: prev.version, audit: { $size: prev.audit.length } },
       { $set: { ...next, ...scope } },
       { new: true, timestamps: false, lean: true },
     );
@@ -65,7 +66,10 @@ export function reviewsRouter(env) {
   };
 
   r.get("/projects/:project/reviews", wrap(async (req, res) => {
-    const rows = await Review.find({ projectId: req.project._id }).lean();
+    const rows = await Review.find(
+      { projectId: req.project._id },
+      { component: 1, status: 1, items: 1, answers: 1, figmaNode: 1, readAt: 1, updatedAt: 1, version: 1 },
+    ).lean();
     const reviews = rows.map((x) => summary(clean(x))).sort((a, b) => a.slug.localeCompare(b.slug));
     const counts = { pending: 0, answered: 0, applied: 0 };
     for (const s of reviews) counts[s.status] = (counts[s.status] || 0) + 1;
@@ -82,6 +86,8 @@ export function reviewsRouter(env) {
     if (typeof body.component !== "string" || !body.component || slugOf(body.component) !== req.params.slug) {
       throw new HttpError(400, "component must be set and its slug must equal the URL.");
     }
+    const okItems = Array.isArray(body.items) && body.items.every((i) => i && typeof i === "object" && typeof i.id === "string" && typeof i.kind === "string");
+    if (body.items !== undefined && !okItems) throw new HttpError(400, "items must be an array of { id, kind, ... }.");
     const prev = await find(req, req.params.slug);
     const result = publish(prev, body, new Date().toISOString());
     if (reply(res, result)) return;
@@ -92,7 +98,7 @@ export function reviewsRouter(env) {
     if (req.auth.kind !== "user") throw new HttpError(403, "Only a reviewer can decide.");
     const prev = await mustExist(req);
     const { answers, migrateBy, version } = req.body || {};
-    const by = req.auth.user.name || req.auth.user.email;
+    const by = String(req.auth.user.name || req.auth.user.email).slice(0, 80);
     const result = decide(prev, { answers, migrateBy, version, by }, new Date().toISOString());
     if (reply(res, result)) return;
     if (result.doc === prev) return res.status(200).json(prev); // nothing changed, nothing to write
@@ -102,12 +108,14 @@ export function reviewsRouter(env) {
   r.post("/projects/:project/reviews/:slug/applied", wrap(async (req, res) => {
     onlyTool(req, "mark a review applied");
     const prev = await mustExist(req);
+    if (prev.status === "applied") return res.status(409).json({ error: "This review was already applied.", current: prev });
+    if (prev.status === "pending") return res.status(409).json({ error: "The reviewers have not answered every removal yet.", current: prev });
     const result = markApplied(prev, new Date().toISOString());
     await save(req, res, prev, result.doc, 200);
   }));
 
   r.get("/projects/:project/history", wrap(async (req, res) => {
-    const rows = await Review.find({ projectId: req.project._id }).lean();
+    const rows = await Review.find({ projectId: req.project._id }, { component: 1, slug: 1, audit: 1 }).lean();
     const entries = [];
     for (const row of rows) {
       for (const a of row.audit || []) {
