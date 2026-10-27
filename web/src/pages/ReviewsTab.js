@@ -60,7 +60,7 @@ export function ReviewsTab({ project }) {
       render: (r) =>
         r.lastDecision ? (
           <div className="flex max-w-xs flex-col break-words">
-            <span>{`${r.lastDecision.by}, ${timeAgo(r.lastDecision.at)}`}</span>
+            <span>{[r.lastDecision.by, timeAgo(r.lastDecision.at)].filter(Boolean).join(", ")}</span>
             {r.lastDecision.note && <span className="text-caption text-sm">{short(r.lastDecision.note)}</span>}
           </div>
         ) : (
@@ -103,6 +103,7 @@ export function ReviewsTab({ project }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-caption text-sm">
               {`${c.pending || 0} waiting for an answer, ${c.answered || 0} answered, ${c.applied || 0} applied`}
+              {filter !== "all" && ` · ${rows.length} shown`}
             </p>
             <div className="w-64">
               <Select options={FILTERS} value={filter} onChange={(v) => setFilter(v || "all")} />

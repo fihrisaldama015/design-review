@@ -273,7 +273,7 @@ function History({ project }) {
     { key: "changes", header: "What", render: (h) => (
         <div className="flex flex-col break-words">
           <span>{describeChanges(h.changes, h.migrateBy) || h.action}</span>
-          {h.note && <span className="text-subtle">{h.note}</span>}
+          {h.note && <span className="text-caption text-sm">{h.note}</span>}
         </div>
       ),
     },
