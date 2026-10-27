@@ -69,7 +69,7 @@ export function reviewsRouter(env) {
   r.get("/projects/:project/reviews", wrap(async (req, res) => {
     const rows = await Review.find(
       { projectId: req.project._id },
-      { component: 1, status: 1, items: 1, answers: 1, figmaNode: 1, readAt: 1, updatedAt: 1, version: 1 },
+      { component: 1, jsxName: 1, status: 1, items: 1, answers: 1, migrateBy: 1, audit: 1, usage: 1, figmaNode: 1, readAt: 1, updatedAt: 1, version: 1 },
     ).lean();
     const reviews = rows.map((x) => summary(clean(x))).sort((a, b) => a.slug.localeCompare(b.slug));
     const counts = { pending: 0, answered: 0, applied: 0 };
@@ -98,9 +98,9 @@ export function reviewsRouter(env) {
   r.post("/projects/:project/reviews/:slug/decision", wrap(async (req, res) => {
     if (req.auth.kind !== "user") throw new HttpError(403, "Only a reviewer can decide.");
     const prev = await mustExist(req);
-    const { answers, migrateBy, version } = req.body || {};
+    const { answers, migrateBy, version, note } = req.body || {};
     const by = String(req.auth.user.name || req.auth.user.email).slice(0, 80);
-    const result = decide(prev, { answers, migrateBy, version, by }, new Date().toISOString());
+    const result = decide(prev, { answers, migrateBy, version, by, note }, new Date().toISOString());
     if (reply(res, result)) return;
     if (result.doc === prev) return res.status(200).json(prev); // nothing changed, nothing to write
     await save(req, res, prev, result.doc, 200);
@@ -120,7 +120,7 @@ export function reviewsRouter(env) {
     const entries = [];
     for (const row of rows) {
       for (const a of row.audit || []) {
-        entries.push({ component: row.component, slug: row.slug, at: a.at, by: a.by, action: a.action, changes: a.changes, migrateBy: a.migrateBy });
+        entries.push({ component: row.component, slug: row.slug, at: a.at, by: a.by, action: a.action, changes: a.changes, migrateBy: a.migrateBy, note: a.note });
       }
     }
     entries.reverse(); // stable sort below then puts later-inserted entries first on equal times

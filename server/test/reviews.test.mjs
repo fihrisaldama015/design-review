@@ -251,3 +251,55 @@ test("a date-only change through the route creates a new audit entry and bumps t
   const hist = await request(app).get(`/api/v1/projects/${p.key}/history`).set(sess(rev));
   assert.deepEqual(hist.body[0].migrateBy, { [id]: "2027-01-15" });
 });
+
+test("decision stores the note and history returns it", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p, { name: "Dina" });
+  await put(p, token);
+  const res = await request(app).post(url(p, "select", "/decision")).set(sess(rev))
+    .send({ version: 1, answers: { "removed-prop:searchable": "keep" }, note: "  <b>Figma first</b>  " });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.audit.at(-1).note, "<b>Figma first</b>");
+  const hist = await request(app).get(`/api/v1/projects/${p.key}/history`).set(sess(rev));
+  assert.equal(hist.body[0].note, "<b>Figma first</b>");
+  assert.deepEqual(hist.body[0].changes, { "removed-prop:searchable": "keep" });
+  assert.equal(hist.body[1].note, undefined);
+});
+
+test("note too long is 400 through the route", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p);
+  await put(p, token);
+  const res = await request(app).post(url(p, "select", "/decision")).set(sess(rev))
+    .send({ version: 1, answers: { "removed-prop:searchable": "keep" }, note: "x".repeat(501) });
+  assert.equal(res.status, 400);
+  assert.equal(res.body.error, "note must be at most 500 characters.");
+  const bad = await request(app).post(url(p, "select", "/decision")).set(sess(rev))
+    .send({ version: 1, answers: { "removed-prop:searchable": "keep" }, note: 5 });
+  assert.equal(bad.status, 400);
+  assert.equal(bad.body.error, "note must be text.");
+});
+
+test("list returns the C2 summary fields", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p, { name: "Dina" });
+  const id = "removed-prop:searchable";
+  await put(p, token, pub({ jsxName: "Select", usage: { at: "2026-10-01T00:00:00.000Z", byItem: { [id]: { count: 3, routes: [], uses: [] } } } }));
+  const before = await request(app).get(`/api/v1/projects/${p.key}/reviews`).set(sess(rev));
+  assert.equal(before.body.reviews[0].lastDecision, null);
+  assert.equal(before.body.reviews[0].usageCount, 3);
+  assert.equal(before.body.reviews[0].jsxName, "Select");
+  await request(app).post(url(p, "select", "/decision")).set(sess(rev))
+    .send({ version: 1, answers: { [id]: "keep-deprecated" }, migrateBy: { [id]: "2026-12-01" }, note: "Later" });
+  const res = await request(app).get(`/api/v1/projects/${p.key}/reviews`).set(sess(rev));
+  const s = res.body.reviews[0];
+  assert.equal(s.answered, 1);
+  assert.deepEqual(s.choices, ["keep-deprecated"]);
+  assert.equal(s.deadline, "2026-12-01");
+  assert.equal(s.lastDecision.by, "Dina");
+  assert.equal(s.lastDecision.note, "Later");
+  assert.equal(s.usageCount, 3);
+});

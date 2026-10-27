@@ -16,6 +16,7 @@ import { Textarea } from "components/textarea";
 import { api, getSession } from "app/api";
 import { SecretAlert } from "app/SecretAlert";
 import { useLoad } from "app/useAsync";
+import { ReviewsTab } from "pages/ReviewsTab";
 
 const when = (iso) => (iso ? new Date(iso).toLocaleString() : "Never");
 
@@ -269,7 +270,13 @@ function History({ project }) {
     { key: "at", header: "When", render: (h) => when(h.at) },
     { key: "by", header: "Who" },
     { key: "component", header: "Component" },
-    { key: "changes", header: "What", render: (h) => describeChanges(h.changes, h.migrateBy) || h.action },
+    { key: "changes", header: "What", render: (h) => (
+        <div className="flex flex-col break-words">
+          <span>{describeChanges(h.changes, h.migrateBy) || h.action}</span>
+          {h.note && <span className="text-subtle">{h.note}</span>}
+        </div>
+      ),
+    },
   ];
   return (
     <>
@@ -291,10 +298,11 @@ export default function ProjectDetail() {
   const { key } = useParams();
   const isAdmin = getSession().user.role === "admin";
   const { data: projects, error, loading, reload } = useLoad(() => api("GET", "/projects"), []);
-  const [tab, setTab] = useState("settings");
+  const [tab, setTab] = useState("reviews");
   const project = projects?.find((p) => p.key === key);
 
   const tabs = [
+    { value: "reviews", label: "Reviews" },
     { value: "settings", label: "Settings" },
     ...(isAdmin ? [{ value: "tokens", label: "Tokens" }, { value: "members", label: "Members" }] : []),
     { value: "history", label: "History" },
@@ -321,6 +329,7 @@ export default function ProjectDetail() {
             }
           />
           <Tabs tabs={tabs} value={tab} onChange={setTab} />
+          {tab === "reviews" && <ReviewsTab key={project.key} project={project} />}
           {tab === "settings" && <Settings key={project.key} project={project} isAdmin={isAdmin} onSaved={reload} />}
           {tab === "tokens" && isAdmin && <Tokens project={project} />}
           {tab === "members" && isAdmin && <Members project={project} />}
