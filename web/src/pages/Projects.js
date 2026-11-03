@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ExternalLink, FolderOpen, Plus } from "lucide-react";
 import { Alert } from "components/alert";
+import { Badge } from "components/badge";
 import { Button } from "components/button";
 import { Card } from "components/card";
 import { DataTable } from "components/data-table";
@@ -64,7 +65,9 @@ export default function Projects() {
   const columns = [
     { key: "name", header: "Name" },
     { key: "key", header: "Key" },
-    { key: "origins", header: "Allowed origins", render: (p) => p.allowedOrigins.join(", ") || "None" },
+    { key: "pending", header: "Waiting for an answer", render: (p) => (p.counts?.pending > 0 ? <Badge tone="warning">{p.counts.pending}</Badge> : "-") },
+    { key: "answered", header: "Answered", render: (p) => (p.counts?.answered > 0 ? <Badge tone="info">{p.counts.answered}</Badge> : "-") },
+    ...(isAdmin ? [{ key: "origins", header: "Allowed origins", render: (p) => p.allowedOrigins.join(", ") || "None" }] : []),
     {
       key: "review",
       header: "",

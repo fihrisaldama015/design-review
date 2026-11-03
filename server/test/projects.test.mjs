@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import { startDb, makeAdmin, makeProject, ORG } from "./helpers.mjs";
 import { connect } from "../src/db.mjs";
-import { ensureIndexes, User, Membership, Token } from "../src/models.mjs";
+import { ensureIndexes, User, Membership, Token, Review } from "../src/models.mjs";
 import { createApp } from "../src/app.mjs";
 import { signSession, hashPassword, newProjectToken } from "../src/auth.mjs";
 
@@ -180,4 +180,41 @@ test("an origin added by create or PATCH works at once (origin cache cleared)", 
   assert.ok((await allowedOrigins(e)).has("https://fresh-one.example.com"));
   await request(app).patch(`/api/v1/projects/${b.key}`).set(as(admin)).send({ allowedOrigins: ["https://fresh-two.example.com"] }).expect(200);
   assert.ok((await allowedOrigins(e)).has("https://fresh-two.example.com"));
+});
+
+const mkReview = (p, slug, status) => Review.create({ orgId: ORG, projectId: p._id, slug, component: slug, status });
+
+test("project list carries counts per project and 0 when there are no reviews", async () => {
+  const admin = await makeAdmin();
+  const busy = await makeProject();
+  const empty = await makeProject();
+  await mkReview(busy, "a", "pending");
+  await mkReview(busy, "b", "pending");
+  await mkReview(busy, "c", "answered");
+  await mkReview(busy, "d", "applied");
+  const res = await request(app).get("/api/v1/projects").set(as(admin));
+  const by = Object.fromEntries(res.body.map((p) => [p.key, p.counts]));
+  assert.deepEqual(by[busy.key], { pending: 2, answered: 1, applied: 1 });
+  assert.deepEqual(by[empty.key], { pending: 0, answered: 0, applied: 0 });
+});
+
+test("a member only gets counts for the projects they belong to", async () => {
+  const m = await makeMember();
+  const mine = await makeProject();
+  const other = await makeProject();
+  await Membership.create({ orgId: ORG, userId: m._id, projectId: mine._id });
+  await mkReview(mine, "a", "pending");
+  await mkReview(other, "a", "pending");
+  const res = await request(app).get("/api/v1/projects").set(as(m));
+  assert.deepEqual(res.body.map((p) => p.key), [mine.key]);
+  assert.deepEqual(res.body[0].counts, { pending: 1, answered: 0, applied: 0 });
+});
+
+test("create and patch responses have no counts", async () => {
+  const admin = await makeAdmin();
+  const b = body();
+  const created = await request(app).post("/api/v1/projects").set(as(admin)).send(b);
+  assert.equal("counts" in created.body, false);
+  const patched = await request(app).patch(`/api/v1/projects/${b.key}`).set(as(admin)).send({ name: "N" });
+  assert.equal("counts" in patched.body, false);
 });

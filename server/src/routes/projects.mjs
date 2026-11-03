@@ -3,7 +3,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { HttpError, hashPassword, newProjectToken, userView } from "../auth.mjs";
 import { clearOriginCache } from "../cors.mjs";
-import { Project, Token, User, Membership } from "../models.mjs";
+import { Project, Token, User, Membership, Review } from "../models.mjs";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 export const KEY_RE = /^[a-z0-9-]{2,40}$/;
@@ -103,7 +103,17 @@ export function projectsRouter(env) {
       filter._id = { $in: (req.auth.projectIds || []).map((id) => new mongoose.Types.ObjectId(id)) };
     }
     const rows = await Project.find(filter).sort({ key: 1 });
-    res.json(rows.map(projectView));
+    // One aggregate for every listed project: counts of reviews per status.
+    const grouped = await Review.aggregate([
+      { $match: { projectId: { $in: rows.map((p) => p._id) } } },
+      { $group: { _id: { projectId: "$projectId", status: "$status" }, n: { $sum: 1 } } },
+    ]);
+    const counts = new Map(rows.map((p) => [String(p._id), { pending: 0, answered: 0, applied: 0 }]));
+    for (const g of grouped) {
+      const c = counts.get(String(g._id.projectId));
+      if (c && g._id.status in c) c[g._id.status] = g.n;
+    }
+    res.json(rows.map((p) => ({ ...projectView(p), counts: counts.get(String(p._id)) })));
   }));
 
   r.post("/projects", wrap(async (req, res) => {
