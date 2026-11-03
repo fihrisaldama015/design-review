@@ -73,3 +73,15 @@ test("connectSnippets ignores anything that is not a project token", () => {
     assert.ok(s.toolEnv.includes(TOKEN_PLACEHOLDER));
   }
 });
+
+test("connectSnippets envFile holds both groups in one file, and only the tool's group carries the token", () => {
+  const token = "drp_AbC123-xyz_0987654321";
+  const s = connectSnippets({ origin: "http://localhost:5010", project: "mvp", token });
+  const [tool, page] = s.envFile.split("\n\n");
+  assert.ok(tool.startsWith("# Sync tool") && page.startsWith("# Review page"));
+  assert.ok(tool.includes("REVIEW_API_URL=http://localhost:5010/api/v1") && tool.includes("REVIEW_PROJECT=mvp") && tool.includes(`REVIEW_API_KEY=${token}`));
+  assert.ok(page.includes("PUBLIC_REVIEW_SERVICE_URL=http://localhost:5010\n") || page.endsWith("PUBLIC_REVIEW_PROJECT=mvp"));
+  assert.ok(page.includes("PUBLIC_REVIEW_SERVICE_URL=http://localhost:5010") && !page.includes("/api/v1"), "the page's address is the origin only");
+  assert.ok(!page.includes(token), "the review page's lines never contain the token");
+  assert.ok(connectSnippets({ origin: "http://x", project: "p" }).envFile.includes(`REVIEW_API_KEY=${TOKEN_PLACEHOLDER}`));
+});

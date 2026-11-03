@@ -25,7 +25,10 @@ export function connectSnippets({ origin, project, token } = {}) {
     hasToken,
     // .figma-dump/review-api.json on the machine that runs the Figma sync (per machine, never committed).
     apiJson: JSON.stringify({ url: apiUrl, project: key, token: secret }, null, 2),
-    // The same three values as environment variables, for someone who prefers not to keep a file. All three are needed.
+    // One .env.local (git-ignored) with the tool's settings and the review page's, each group labelled. The tool reads the REVIEW_ lines,
+    // the app's build reads the PUBLIC_ ones, and only those reach the browser.
+    envFile: `# Sync tool: read by the Figma sync on your computer, never sent to the browser\nREVIEW_API_URL=${apiUrl}\nREVIEW_PROJECT=${key}\nREVIEW_API_KEY=${secret}\n\n# Review page: read by your app when it is built (no token)\nPUBLIC_REVIEW_SERVICE_URL=${serviceUrl}\nPUBLIC_REVIEW_PROJECT=${key}`,
+    // The same three values as environment variables, for someone who prefers to export them in the shell. All three are needed.
     toolEnv: `REVIEW_API_URL=${apiUrl}\nREVIEW_PROJECT=${key}\nREVIEW_API_KEY=${secret}`,
     // The app that hosts the /review page reads these when it is built.
     pageEnv: `PUBLIC_REVIEW_SERVICE_URL=${serviceUrl}\nPUBLIC_REVIEW_PROJECT=${key}`,

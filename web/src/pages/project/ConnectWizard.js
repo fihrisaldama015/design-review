@@ -55,7 +55,7 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
   const isDone = (i) => auto[i] || confirmed.has(i);
   const firstOpen = [0, 1, 2, 3, 4].find((i) => !isDone(i)) ?? 0;
   const [open, setOpen] = useState(firstOpen);
-  const [where, setWhere] = useState("file");
+  const [where, setWhere] = useState("env"); // "env": one .env.local with every setting; "file": .figma-dump/review-api.json for the tool
   const [check, setCheck] = useState("curl");
   // What to do with the token in a block: nothing when this page already filled it in, otherwise replace the placeholder.
   const tokenHint = snippets.hasToken ? "Your new token is already in the block: copy it as it is." : `Replace ${TOKEN_PLACEHOLDER} with your token. It starts with drp_: paste all of it, including drp_.`;
@@ -103,27 +103,31 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
           {createStep}
           {nav(0, gate)}
         </>)}
-        {row(1, { title: "Tell the sync tool where to send reviews", summary: used ? "A token was used: the tool is connected" : "A file, or environment variables" }, <>
+        {row(1, { title: "Tell the sync tool where to send reviews", summary: used ? "A token was used: the tool is connected" : "One .env.local file, or a .figma-dump file" }, <>
           <div className="rounded-default bg-surface-lv1 p-4 typo-regular-text-sm">
             <p><strong>First, the tool must be in your project.</strong> It is the Figma-to-Storybook skill: the folder <code>.claude/skills/building-storybook-from-figma</code> and the <code>scripts/figma</code> scripts. A project that already has them can skip this. For another project, copy them from a project that has them: the skill's <code>reference/setup.md</code> explains the install. There is no shared package yet.</p>
           </div>
-          <p className="typo-regular-text-sm">The tool needs three things: this service's address, this project's key, and your token. Keep them in <strong>one</strong> of these two places:</p>
-          <div className="rounded-default bg-surface-lv1 p-4 typo-regular-text-sm">
-            <p><strong>Why a file is recommended on a laptop.</strong> The file sits in the project's folder, so every project keeps its own. Environment variables belong to the whole shell: they win over the file, so values exported for another project would silently replace this one's. Use environment variables only when you have a reason not to keep a file.</p>
-            <p className="mt-2"><strong>How the tool decides.</strong> It looks for the environment variables first (if it finds any of the three, it needs all three). If there are none, it reads the file. If it finds neither, it works alone on your computer and <strong>nobody can answer</strong>, because reviewers need this service. The tool does <strong>not</strong> read your app's <code>.env</code> file: export the variables in the shell that starts Claude Code, or use the file.</p>
-          </div>
-          <div className="overflow-x-auto"><Tabs className="min-w-max" tabs={[{ value: "file", label: "A file (recommended)" }, { value: "env", label: "Environment variables" }]} value={where} onChange={setWhere} /></div>
-          {where === "file" ? (
+          <p className="typo-regular-text-sm">The tool needs three things: this service's address, this project's key, and your token. Keep them in <strong>one</strong> of these two ways:</p>
+          <div className="overflow-x-auto"><Tabs className="min-w-max" tabs={[{ value: "env", label: "One .env.local file (recommended)" }, { value: "file", label: "A .figma-dump file" }]} value={where} onChange={setWhere} /></div>
+          {where === "env" ? (
             <>
-              <p className="typo-regular-text-sm">The sync runs on your computer, so the file lives there, in the project's folder. {tokenHint} The <code>.figma-dump</code> folder stays out of git: never commit a token.</p>
-              <CodeBlock title=".figma-dump/review-api.json" code={snippets.apiJson} note={'url is this service, project is this project\'s key. Optional: add a "reviewPage" line with the address of your review page (for example http://localhost:5002/review) so the tool\'s messages tell people where to answer.'} />
+              <p className="typo-regular-text-sm">One file in the project's folder holds every setting: the sync tool's here, the review page's in step 4. Create <code>.env.local</code>, or add to it. Make sure git ignores it (<code>.env.local</code> or <code>.env.*</code> in <code>.gitignore</code>): the token must never be committed. <code>.env</code> also works, but is more often committed.</p>
+              <p className="typo-regular-text-sm">{tokenHint}</p>
+              <CodeBlock
+                title=".env.local"
+                code={snippets.toolEnv}
+                note="Add these three lines. Step 4 adds the two PUBLIC_ lines to the same file. The tool's address ends in /api/v1; the review page's address (step 4) does not."
+              />
             </>
           ) : (
             <>
-              <p className="typo-regular-text-sm">The same three values, if you prefer not to keep a file: put them in your shell profile, or in the environment that starts Claude Code. All three are needed, and then you do not need the file. {tokenHint}</p>
-              <CodeBlock title="Environment variables for the sync tool" code={snippets.toolEnv} />
+              <p className="typo-regular-text-sm">The sync runs on your computer, so the file lives there, in the project's folder. {tokenHint} The <code>.figma-dump</code> folder stays out of git: never commit a token. The review page's settings then go in a separate <code>.env</code> file (step 4).</p>
+              <CodeBlock title=".figma-dump/review-api.json" code={snippets.apiJson} note={'url is this service and ends in /api/v1, project is this project\'s key. Optional: add a "reviewPage" line with the address of your review page (for example http://localhost:5002/review) so the tool\'s messages tell people where to answer.'} />
             </>
           )}
+          <div className="rounded-default bg-surface-lv1 p-4 typo-regular-text-sm">
+            <p><strong>How the tool decides.</strong> For each of the three settings it takes the first one it finds: the shell (an exported variable), then <code>.env.local</code>, then <code>.env</code>. If none of the three is set anywhere, it reads the <code>.figma-dump</code> file. If it finds neither, it works alone on your computer and <strong>nobody can answer</strong>, because reviewers need this service. Exported variables belong to the whole shell and win over the files, so one exported for another project would silently replace this one's.</p>
+          </div>
           {nav(1)}
         </>)}
         {row(2, { title: "Check that this computer can reach the project", summary: used ? "Done: a token was used" : "One command" }, <>
@@ -139,8 +143,9 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
         </>)}
         {row(3, { title: "Connect the review page of your app", summary: "Two variables, no token" }, <>
           <p className="typo-regular-text-sm">This is a different thing from step 2. The review page is the <code>/review</code> page of your own app (not a separate app), and it runs in the browser, so it only gets the address of this service and the project key. The names start with <code>PUBLIC_</code> because that is how the app's build tool decides which values may be shown in the browser: <strong>never put the token here</strong>.</p>
-          <p className="typo-regular-text-sm">Set them in both places the app runs: on your computer while you develop (the app's <code>.env</code> or <code>.env.development</code>), and where it is deployed.</p>
-          <CodeBlock title="Environment variables for the app (.env)" code={snippets.pageEnv} note="On your computer, restart the dev server after changing them. On the host (on Vercel: Project → Settings → Environment Variables, for Production and Preview) they are read when the app is built, so deploy again." />
+          <p className="typo-regular-text-sm">Set them in both places the app runs: on your computer while you develop, and where it is deployed. On your computer, put them in the same <code>.env.local</code> if you chose one file in step 2, otherwise in the app's <code>.env</code> (or <code>.env.development</code>: these two hold no secret, so they may be committed).</p>
+          <p className="typo-regular-text-sm">The address here is <strong>the service only, without <code>/api/v1</code></strong>: the page adds that itself. The sync tool's address in step 2 is the one that ends in <code>/api/v1</code>.</p>
+          <CodeBlock title={where === "env" ? "The two PUBLIC_ lines, in the same .env.local" : "Environment variables for the app (.env)"} code={snippets.pageEnv} note="On your computer, restart the dev server after changing them. On the host (on Vercel: Project → Settings → Environment Variables, for Production and Preview) they are read when the app is built, so deploy again." />
           {nav(3)}
         </>)}
         {row(4, { title: "Allow the page, invite reviewers, send the first review", summary: reviewsCount > 0 ? "A review has arrived" : "Settings, Members, then run the sync" }, <>
@@ -161,15 +166,27 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h4 className="typo-semi-bold-text-base">At the end, your settings look like this</h4>
-          <p className="text-caption typo-regular-text-sm">Two places, because two programs read them. They are not one file: the sync tool does not read the app's <code>.env</code>, and the review page must never get the token.</p>
+          <p className="text-caption typo-regular-text-sm">Two programs read these settings: the sync tool (the <code>REVIEW_</code> lines, with the token) and your app's review page (the <code>PUBLIC_REVIEW_</code> lines, never the token). Only the <code>PUBLIC_</code> ones reach the browser.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <CodeBlock
-            title={where === "file" ? "For the sync tool: .figma-dump/review-api.json" : "For the sync tool: exported in the shell"}
-            code={where === "file" ? snippets.apiJson : snippets.toolEnv}
-            note={snippets.hasToken ? "Read by the sync tool, on your computer only. This already contains the token you just created." : "Read by the sync tool, on your computer only. This is where the token lives."}
-          />
-          <CodeBlock title="For the review page: .env and your host's environment variables" code={snippets.pageEnv} note="Read by your app when it is built, on your computer and where it is deployed. No token." />
+          {where === "env" ? (
+            <div className="md:col-span-2">
+              <CodeBlock
+                title=".env.local (one file, not committed)"
+                code={snippets.envFile}
+                note={snippets.hasToken ? "The first group is read by the sync tool and holds the token (it already contains the one you just created). The second is read by your app's build and has no token. Put the second group in your host's environment variables too." : "The first group is read by the sync tool and holds the token. The second is read by your app's build and has no token. Put the second group in your host's environment variables too."}
+              />
+            </div>
+          ) : (
+            <>
+              <CodeBlock
+                title="For the sync tool: .figma-dump/review-api.json"
+                code={snippets.apiJson}
+                note={snippets.hasToken ? "Read by the sync tool, on your computer only. This already contains the token you just created." : "Read by the sync tool, on your computer only. This is where the token lives."}
+              />
+              <CodeBlock title="For the review page: .env and your host's environment variables" code={snippets.pageEnv} note="Read by your app when it is built, on your computer and where it is deployed. No token." />
+            </>
+          )}
         </div>
       </section>
     </div>
