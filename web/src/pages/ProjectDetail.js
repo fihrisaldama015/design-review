@@ -73,7 +73,7 @@ export default function ProjectDetail() {
           {active === "reviews" && <ReviewsTab key={project.key} project={project} isAdmin={isAdmin} onGo={setTab} />}
           {active === "history" && <History project={project} />}
           {active === "members" && isAdmin && <Members project={project} onChanged={changed} />}
-          {active === "tokens" && isAdmin && <Tokens project={project} onChanged={changed} onGo={setTab} />}
+          {active === "tokens" && isAdmin && <Tokens project={project} reviewsCount={setup.data?.[2]?.reviews?.length ?? 0} onChanged={changed} onGo={setTab} />}
           {active === "settings" && isAdmin && <Settings key={project.key} project={project} isAdmin={isAdmin} onSaved={() => { reload(); changed(); }} />}
         </>
       )}

@@ -15,10 +15,11 @@ import { SecretAlert } from "app/SecretAlert";
 import { connectSnippets } from "app/setup";
 import { when } from "app/timeAgo";
 import { useLoad } from "app/useAsync";
-import { CodeBlock, FaqList, FieldHelp, SectionTitle, Step, TabIntro } from "app/ui";
+import { FaqList, FieldHelp, SectionTitle, TabIntro } from "app/ui";
+import { ConnectWizard } from "pages/project/ConnectWizard";
 
 /** Tokens of a project and the guide that connects the project to this service. Admins only. */
-export function Tokens({ project, onChanged, onGo }) {
+export function Tokens({ project, reviewsCount, onChanged, onGo }) {
   const { data, error, reload } = useLoad(() => api("GET", `/projects/${project.key}/tokens`), [project.key]);
   const [label, setLabel] = useState("");
   const [created, setCreated] = useState(null);
@@ -76,18 +77,23 @@ export function Tokens({ project, onChanged, onGo }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <TabIntro icon={<KeyRound size={24} />} title="A token lets the sync tool publish reviews to this project">
-        <p>It is the only thing the tool needs. People never use it and it never goes in a browser. Below you create one, then follow the steps to connect the project.</p>
+      <TabIntro icon={<KeyRound size={24} />} title="Connect this project, step by step">
+        <p>Two different programs need to know about this service: the <strong>sync tool</strong> that sends reviews (it needs a secret token), and the <strong>review page</strong> in the browser that shows them (it must never get the token). The steps below set up both.</p>
       </TabIntro>
 
       {(error || formError) && <Alert status="danger" kind="outlined">{error || formError}</Alert>}
       {created && <SecretAlert title={`New token: ${created.label}`} secret={created.token} noun="token" onDismiss={() => setCreated(null)} />}
 
       <section className="flex flex-col gap-4">
-        <SectionTitle icon={<KeyRound size={20} />} title="Tokens" description="Make one token per place it is used, so you can revoke one without breaking the others." />
-        <Card title="Create a token" description="The token is shown once, right after you create it. Copy it then.">
-          <form onSubmit={create} className="flex flex-col gap-4">
-            <div className="flex max-w-xl flex-col gap-2">
+        <SectionTitle icon={<Plug size={20} />} title="Connect your project" description="Five short steps, one open at a time. The code blocks already contain this project's address and key: copy them and paste your token where it says." />
+        <ConnectWizard
+          project={project}
+          snippets={snippets}
+          tokens={data}
+          reviewsCount={reviewsCount ?? 0}
+          onGo={onGo}
+          createStep={
+            <form onSubmit={create} className="flex max-w-xl flex-col gap-3">
               <Field label="Label" required hint="Say where it will be used.">
                 <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Aisyah's laptop" />
               </Field>
@@ -95,49 +101,21 @@ export function Tokens({ project, onChanged, onGo }) {
                 <p>A short name for the place that will use the token: a person's laptop (“Aisyah's laptop”), a build server (“CI”), or the project folder (“mvp sync”).</p>
                 <p>If a laptop is lost or someone leaves, you revoke only that token and the others keep working.</p>
               </FieldHelp>
-            </div>
-            <div>
-              <Button type="submit" status="primary" prefixIcon={<Plus />} loading={busy} disabled={!label.trim()}>Create token</Button>
-            </div>
-          </form>
-        </Card>
-        {data && (
-          <Card title="Your tokens" padded={false}>
-            <DataTable columns={columns} rows={data} empty={<EmptyState icon={<KeyRound size={22} />} title="No tokens yet" description="Create one above. Without a token the sync tool cannot publish reviews here." />} />
-          </Card>
-        )}
+              <div>
+                <Button type="submit" status="primary" prefixIcon={<Plus />} loading={busy} disabled={!label.trim()}>Create token</Button>
+              </div>
+            </form>
+          }
+        />
       </section>
 
       <section className="flex flex-col gap-4">
-        <SectionTitle icon={<Plug size={20} />} title="Connect your project" description="Five steps, in this order. The code blocks already contain this project's address and key: copy them and paste your token where it says." />
-        <ol className="flex flex-col">
-          <Step n={1} title="Create a token">
-            <p className="typo-regular-text-sm">Use the form above and copy the token when it appears. You will paste it in the next step. It starts with <code>drp_</code>.</p>
-          </Step>
-          <Step n={2} title="Tell the sync tool where this service is">
-            <p className="typo-regular-text-sm">On the machine that runs the Figma sync, in the project's folder, create the file below. Replace the token placeholder with the token from step 1. The <code>.figma-dump</code> folder stays out of git: never commit a token.</p>
-            <CodeBlock title=".figma-dump/review-api.json" code={snippets.apiJson} note="url is this service, project is this project's key, reviewPage is the page where reviewers decide (used in messages)." />
-            <p className="typo-regular-text-sm">On a build server, or when you prefer environment variables, set these three instead (all three are needed):</p>
-            <CodeBlock title="Environment variables for the sync tool" code={snippets.toolEnv} />
-          </Step>
-          <Step n={3} title="Check that the tool can reach this project">
-            <CodeBlock title="Run in the project's folder" code={snippets.checkCommand} />
-            <p className="typo-regular-text-sm">It lists the reviews waiting for an answer, or says it cannot reach the service. “Unknown or revoked project token” means the token is wrong.</p>
-          </Step>
-          <Step n={4} title="Connect the review page of the app">
-            <p className="typo-regular-text-sm">The app that shows the review page needs to know where this service is. Put these two lines in its <code>.env</code> file, and in your hosting's environment variables (on Vercel: Project → Settings → Environment Variables, for Production and Preview). They are read when the app is built, so build or deploy again after adding them.</p>
-            <CodeBlock title="Environment variables for the app (.env)" code={snippets.pageEnv} />
-            <div>
-              <Button kind="outlined" size="sm" onClick={() => onGo?.("settings")}>Then allow the page's address in Settings</Button>
-            </div>
-          </Step>
-          <Step n={5} title="Publish the first review">
-            <p className="typo-regular-text-sm">Run the Figma sync as usual. When a component that already exists in code differs from Figma, the tool publishes a review here and it shows in the Reviews tab as “Waiting for an answer”. Add the people who decide in the Members tab.</p>
-            <div>
-              <Button kind="outlined" size="sm" onClick={() => onGo?.("members")}>Add reviewers</Button>
-            </div>
-          </Step>
-        </ol>
+        <SectionTitle icon={<KeyRound size={20} />} title="Your tokens" description="Make one token per place it is used, so you can revoke one without breaking the others. “Last used” shows when a tool last connected with it." />
+        {data && (
+          <Card padded={false}>
+            <DataTable columns={columns} rows={data} empty={<EmptyState icon={<KeyRound size={22} />} title="No tokens yet" description="Create one in step 1 above. Without a token the sync tool cannot publish reviews here." />} />
+          </Card>
+        )}
       </section>
 
       <section className="flex flex-col gap-4">
