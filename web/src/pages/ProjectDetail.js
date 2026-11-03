@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
 import { Alert } from "components/alert";
 import { Button } from "components/button";
@@ -20,7 +20,10 @@ export default function ProjectDetail() {
   const { key } = useParams();
   const isAdmin = getSession().user.role === "admin";
   const { data: projects, error, loading, reload } = useLoad(() => api("GET", "/projects"), []);
-  const [tab, setTab] = useState("reviews");
+  // The open tab lives in the address (?tab=members), so a refresh, a shared link and the Back button all keep it.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("tab");
+  const setTab = (value, { replace = false } = {}) => setParams((p) => { const next = new URLSearchParams(p); next.set("tab", value); return next; }, { replace });
   const [bump, setBump] = useState(0); // a token, a member or a settings change refreshes the checklist
   const project = projects?.find((p) => p.key === key);
   const known = Boolean(project);
@@ -37,7 +40,8 @@ export default function ProjectDetail() {
     { value: "history", label: "History" },
     ...(isAdmin ? [{ value: "members", label: "Members" }, { value: "tokens", label: "Tokens & setup" }, { value: "settings", label: "Settings" }] : []),
   ];
-  const active = tabs.some((t) => t.value === tab) ? tab : "reviews"; // a stale value never shows an empty page
+  const active = tabs.some((t) => t.value === requested) ? requested : "reviews"; // an unknown tab, or one this person may not open, shows Reviews
+  useEffect(() => { if (requested && requested !== active) setTab(active, { replace: true }); }, [requested, active]); // and the address is corrected without a history entry
   const links = project ? [
     project.reviewUrl && { href: project.reviewUrl, label: "Open the review page", primary: true },
     figmaUrl(project.figmaFileKey) && { href: figmaUrl(project.figmaFileKey), label: "Open in Figma" },
