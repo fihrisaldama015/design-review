@@ -112,7 +112,7 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
             <p><strong>Why a file is recommended on a laptop.</strong> The file sits in the project's folder, so every project keeps its own. Environment variables belong to the whole shell: they win over the file, so values exported for another project would silently replace this one's. Use environment variables only when you have a reason not to keep a file.</p>
             <p className="mt-2"><strong>How the tool decides.</strong> It looks for the environment variables first (if it finds any of the three, it needs all three). If there are none, it reads the file. If it finds neither, it works alone on your computer and <strong>nobody can answer</strong>, because reviewers need this service. The tool does <strong>not</strong> read your app's <code>.env</code> file: export the variables in the shell that starts Claude Code, or use the file.</p>
           </div>
-          <Tabs tabs={[{ value: "file", label: "A file (recommended)" }, { value: "env", label: "Environment variables" }]} value={where} onChange={setWhere} />
+          <div className="overflow-x-auto"><Tabs className="min-w-max" tabs={[{ value: "file", label: "A file (recommended)" }, { value: "env", label: "Environment variables" }]} value={where} onChange={setWhere} /></div>
           {where === "file" ? (
             <>
               <p className="typo-regular-text-sm">The sync runs on your computer, so the file lives there, in the project's folder. {tokenHint} The <code>.figma-dump</code> folder stays out of git: never commit a token.</p>
@@ -128,7 +128,7 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
         </>)}
         {row(2, { title: "Check that this computer can reach the project", summary: used ? "Done: a token was used" : "One command" }, <>
           <p className="typo-regular-text-sm">Run one of these in a terminal. The first needs nothing installed.</p>
-          <Tabs tabs={[{ value: "curl", label: "With curl (nothing to install)" }, { value: "tool", label: "With the tool (needs the skill)" }]} value={check} onChange={setCheck} />
+          <div className="overflow-x-auto"><Tabs className="min-w-max" tabs={[{ value: "curl", label: "With curl (nothing to install)" }, { value: "tool", label: "With the tool (needs the skill)" }]} value={check} onChange={setCheck} /></div>
           {check === "curl" ? (
             <CodeBlock title="Terminal" code={snippets.checkCurl} note={`${snippets.hasToken ? "Your token is already in the command." : `Replace ${TOKEN_PLACEHOLDER} with your token (all of it, including drp_).`} A working token answers with {"reviews":[],"counts":{...}}. "Unknown or revoked project token" means the token is wrong.`} />
           ) : (

@@ -18,10 +18,10 @@ export function Collapse({ open, duration = 300, children, className }) {
   return (
     <div
       className={className}
-      style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: reduced() ? "none" : `grid-template-rows ${duration}ms ease` }}
+      style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gridTemplateRows: open ? "1fr" : "0fr", transition: reduced() ? "none" : `grid-template-rows ${duration}ms ease` }}
       onTransitionEnd={(e) => { if (e.target === e.currentTarget) setSettled(open); }}
     >
-      <div className={cn("min-h-0", open && settled ? "overflow-visible" : "overflow-hidden")} aria-hidden={!open} {...(open ? {} : { inert: "" })}>
+      <div className={cn("min-h-0 min-w-0", open && settled ? "overflow-visible" : "overflow-hidden")} aria-hidden={!open} {...(open ? {} : { inert: "" })}>
         {seen ? children : null}
       </div>
     </div>

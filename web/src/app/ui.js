@@ -17,12 +17,12 @@ export function CodeBlock({ title, code, note }) {
     }
   };
   return (
-    <div className="overflow-hidden rounded-default border border-default">
+    <div className="min-w-0 overflow-hidden rounded-default border border-default">
       <div className="flex items-center justify-between gap-3 border-b border-default bg-surface-lv1 px-4 py-2">
         <span className="flex min-w-0 items-center gap-2 typo-medium-text-sm"><FileText size={14} className="shrink-0" /><span className="break-all">{title}</span></span>
         <Button size="sm" kind="text" prefixIcon={copied ? <Check /> : <Copy />} onClick={copy}>{copied ? "Copied" : "Copy"}</Button>
       </div>
-      <pre className="overflow-x-auto bg-surface p-4 text-sm"><code>{code}</code></pre>
+      <pre className="overflow-x-auto whitespace-pre-wrap break-all bg-surface p-4 text-sm"><code>{code}</code></pre>
       {note && <p className="border-t border-default bg-surface-lv1 px-4 py-2 text-caption typo-regular-text-sm">{note}</p>}
     </div>
   );
