@@ -15,21 +15,22 @@ test("eventKind classifies every audit action and unknown text as other", () => 
 });
 
 test("connectSnippets fills in the real address and project key, and never a real token", () => {
-  const s = connectSnippets({ origin: "https://design-review-jet.vercel.app/", project: "mvp", reviewUrl: "https://app.example.com/review" });
+  const s = connectSnippets({ origin: "https://design-review-jet.vercel.app/", project: "mvp" });
   assert.equal(s.serviceUrl, "https://design-review-jet.vercel.app");
   assert.equal(s.apiUrl, "https://design-review-jet.vercel.app/api/v1");
-  assert.deepEqual(JSON.parse(s.apiJson), { url: "https://design-review-jet.vercel.app/api/v1", project: "mvp", token: TOKEN_PLACEHOLDER, reviewPage: "https://app.example.com/review" });
+  assert.deepEqual(JSON.parse(s.apiJson), { url: "https://design-review-jet.vercel.app/api/v1", project: "mvp", token: TOKEN_PLACEHOLDER });
   assert.equal(s.toolEnv, `REVIEW_API_URL=https://design-review-jet.vercel.app/api/v1\nREVIEW_PROJECT=mvp\nREVIEW_API_KEY=${TOKEN_PLACEHOLDER}`);
   assert.equal(s.pageEnv, "PUBLIC_REVIEW_SERVICE_URL=https://design-review-jet.vercel.app\nPUBLIC_REVIEW_PROJECT=mvp");
   assert.equal(s.checkCommand, "node scripts/figma/reviewState.mjs");
+  assert.equal(s.checkCurl, `curl -s -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" https://design-review-jet.vercel.app/api/v1/projects/mvp/reviews`);
   assert.ok(TOKEN_PLACEHOLDER.startsWith("drp_") && !/drp_[A-Za-z0-9]{20}/.test(s.apiJson));
 });
 
-test("connectSnippets uses placeholders when the project or the review page is not known yet", () => {
+test("connectSnippets uses a placeholder when the project is not known yet", () => {
   const s = connectSnippets({ origin: "http://localhost:9300" });
   const j = JSON.parse(s.apiJson);
   assert.equal(j.project, "<project key>");
-  assert.equal(j.reviewPage, "https://<your-app>/review");
+  assert.equal("reviewPage" in j, false); // the environment variables have no such value, so the file does not either
   assert.equal(connectSnippets().apiUrl, "/api/v1");
 });
 

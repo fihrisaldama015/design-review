@@ -5,12 +5,13 @@ import { Alert } from "components/alert";
 import { Button } from "components/button";
 
 /** A secret (token or temporary password) shown once, with a Copy button. */
-export function SecretAlert({ title, secret, noun, onDismiss }) {
+export function SecretAlert({ title, secret, noun, onDismiss, onCopy }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(secret);
       setCopied(true);
+      onCopy?.();
     } catch {
       setCopied(false);
     }
@@ -39,6 +40,8 @@ SecretAlert.propTypes = {
   noun: PropTypes.oneOf(["token", "password"]).isRequired,
   /** The secret to show. */
   secret: PropTypes.string.isRequired,
-  /** Called when the alert is dismissed. */
+  /** Called when the alert is dismissed. Leave it out to keep the alert on screen. */
   onDismiss: PropTypes.func,
+  /** Called once the secret was copied with the Copy button. */
+  onCopy: PropTypes.func,
 };

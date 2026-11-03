@@ -6,21 +6,22 @@ const trim = (u) => String(u ?? "").replace(/\/+$/, "");
 export const TOKEN_PLACEHOLDER = "drp_PASTE_YOUR_TOKEN_HERE";
 
 /** The text to copy into the project: the tool's file or environment, and the review page's environment. */
-export function connectSnippets({ origin, project, reviewUrl } = {}) {
+export function connectSnippets({ origin, project } = {}) {
   const serviceUrl = trim(origin);
   const apiUrl = `${serviceUrl}/api/v1`;
   const key = project || "<project key>";
-  const page = reviewUrl || "https://<your-app>/review";
   return {
     serviceUrl,
     apiUrl,
     // .figma-dump/review-api.json on the machine that runs the Figma sync (per machine, never committed).
-    apiJson: JSON.stringify({ url: apiUrl, project: key, token: TOKEN_PLACEHOLDER, reviewPage: page }, null, 2),
-    // The same thing as environment variables, for a CI job or a machine without the file. All three are needed.
+    apiJson: JSON.stringify({ url: apiUrl, project: key, token: TOKEN_PLACEHOLDER }, null, 2),
+    // The same three values as environment variables, for someone who prefers not to keep a file. All three are needed.
     toolEnv: `REVIEW_API_URL=${apiUrl}\nREVIEW_PROJECT=${key}\nREVIEW_API_KEY=${TOKEN_PLACEHOLDER}`,
     // The app that hosts the /review page reads these when it is built.
     pageEnv: `PUBLIC_REVIEW_SERVICE_URL=${serviceUrl}\nPUBLIC_REVIEW_PROJECT=${key}`,
     checkCommand: "node scripts/figma/reviewState.mjs",
+    // The same check with nothing to install: asks the service for this project's reviews with the token.
+    checkCurl: `curl -s -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" ${apiUrl}/projects/${key}/reviews`,
   };
 }
 

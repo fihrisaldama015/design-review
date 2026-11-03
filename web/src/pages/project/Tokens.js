@@ -15,6 +15,7 @@ import { SecretAlert } from "app/SecretAlert";
 import { connectSnippets } from "app/setup";
 import { when } from "app/timeAgo";
 import { useLoad } from "app/useAsync";
+import { Checkbox } from "components/checkbox";
 import { FaqList, FieldHelp, SectionTitle, TabIntro } from "app/ui";
 import { ConnectWizard } from "pages/project/ConnectWizard";
 
@@ -23,6 +24,10 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
   const { data, error, reload } = useLoad(() => api("GET", `/projects/${project.key}/tokens`), [project.key]);
   const [label, setLabel] = useState("");
   const [created, setCreated] = useState(null);
+  const [copied, setCopied] = useState(false); // the new token was copied, or the person says it is saved
+  const hasActive = (data ?? []).some((t) => !t.revokedAt);
+  // Step 1 may only go on once a token exists and, for a new one, was copied: it is shown once.
+  const gate = created ? (copied ? "" : "Copy the token first: you will not see it again.") : hasActive ? "" : "Create a token first.";
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [toRevoke, setToRevoke] = useState(null);
@@ -36,6 +41,7 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
     try {
       const res = await api("POST", `/projects/${project.key}/tokens`, { label });
       setCreated(res);
+      setCopied(false);
       setLabel("");
       reload();
       onChanged?.();
@@ -82,8 +88,6 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
       </TabIntro>
 
       {(error || formError) && <Alert status="danger" kind="outlined">{error || formError}</Alert>}
-      {created && <SecretAlert title={`New token: ${created.label}`} secret={created.token} noun="token" onDismiss={() => setCreated(null)} />}
-
       <section className="flex flex-col gap-4">
         <SectionTitle icon={<Plug size={20} />} title="Connect your project" description="Five short steps, one open at a time. The code blocks already contain this project's address and key: copy them and paste your token where it says." />
         <ConnectWizard
@@ -92,6 +96,7 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
           tokens={data}
           reviewsCount={reviewsCount ?? 0}
           onGo={onGo}
+          gate={gate}
           createStep={
             <form onSubmit={create} className="flex max-w-xl flex-col gap-3">
               <Field label="Label" required hint="Say where it will be used.">
@@ -104,6 +109,12 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
               <div>
                 <Button type="submit" status="primary" prefixIcon={<Plus />} loading={busy} disabled={!label.trim()}>Create token</Button>
               </div>
+              {created && (
+                <div className="flex flex-col gap-3">
+                  <SecretAlert title={`New token: ${created.label}`} secret={created.token} noun="token" onCopy={() => setCopied(true)} onDismiss={copied ? () => setCreated(null) : undefined} />
+                  <Checkbox label="I saved the token somewhere safe" description="Tick this if the Copy button does not work for you." checked={copied} onChange={(e) => setCopied(e.target.checked)} />
+                </div>
+              )}
             </form>
           }
         />
