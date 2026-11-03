@@ -11,6 +11,7 @@ import { EmptyState } from "components/empty-state";
 import { Field } from "components/field";
 import { Input } from "components/input";
 import { PageHeader } from "components/page-header";
+import { Select } from "components/select";
 import { Tabs } from "components/tabs";
 import { Textarea } from "components/textarea";
 import { api, getSession } from "app/api";
@@ -259,36 +260,55 @@ function Members({ project }) {
   );
 }
 
-const describeChanges = (changes, migrateBy) =>
-  Object.entries(changes || {})
-    .map(([prop, choice]) => `${prop}: ${choice ?? "cleared"}${migrateBy?.[prop] ? ` (migrate by ${migrateBy[prop]})` : ""}`)
-    .join(", ");
+const ALL = "all";
 
 function History({ project }) {
   const { data, error } = useLoad(() => api("GET", `/projects/${project.key}/history`), [project.key]);
+  const [component, setComponent] = useState(ALL);
+  const entries = data || [];
+  const names = [...new Set(entries.map((h) => h.component).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const options = [{ value: ALL, label: "All components" }, ...names.map((n) => ({ value: n, label: n }))];
+  const filtered = component === ALL ? entries : entries.filter((h) => h.component === component);
   const columns = [
     { key: "at", header: "When", render: (h) => when(h.at) },
     { key: "by", header: "Who" },
     { key: "component", header: "Component" },
     { key: "changes", header: "What", render: (h) => (
         <div className="flex flex-col break-words">
-          <span>{describeChanges(h.changes, h.migrateBy) || h.action}</span>
+          <span>{h.event || h.action}</span>
+          {(h.lines || []).map((line) => <span key={line} className="text-caption text-sm">{line}</span>)}
           {h.note && <span className="text-caption text-sm">{h.note}</span>}
         </div>
       ),
     },
   ];
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return (
     <>
       {error && <Alert status="danger" kind="outlined">{error}</Alert>}
       {data && (
-        <Card title="Decision history" padded={false}>
-          <DataTable
-            columns={columns}
-            rows={data.map((h, i) => ({ ...h, id: i }))}
-            empty={<EmptyState icon={<HistoryIcon size={22} />} title="No decisions yet" description="Decisions appear here once reviewers answer a review." />}
-          />
-        </Card>
+        <>
+          <Card title="Decision history" padded={false}>
+            <div className="flex items-center gap-3 border-b border-default p-4">
+              <div className="w-64">
+                <Select options={options} value={component} onChange={(v) => setComponent(v || ALL)} />
+              </div>
+              {component !== ALL && <span className="text-caption text-sm">{filtered.length} shown</span>}
+            </div>
+            <DataTable
+              columns={columns}
+              rows={filtered.map((h, i) => ({ ...h, id: i }))}
+              empty={
+                entries.length ? (
+                  <EmptyState icon={<HistoryIcon size={22} />} title="No decisions match this filter" />
+                ) : (
+                  <EmptyState icon={<HistoryIcon size={22} />} title="No decisions yet" description="Decisions appear here once reviewers answer a review." />
+                )
+              }
+            />
+          </Card>
+          <p className="text-caption text-sm">{`Times are shown in your browser's time zone (${zone}).`}</p>
+        </>
       )}
     </>
   );

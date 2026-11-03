@@ -303,3 +303,20 @@ test("list returns the C2 summary fields", async () => {
   assert.equal(s.lastDecision.note, "Later");
   assert.equal(s.usageCount, 3);
 });
+
+test("history entries carry event and lines and keep the old fields", async () => {
+  const p = await makeProject();
+  const { token } = await makeTool(p);
+  const rev = await makeMember(p, { name: "Dina" });
+  await put(p, token);
+  await request(app).post(url(p, "select", "/decision")).set(sess(rev)).send({ version: 1, answers: { "removed-prop:searchable": "keep" } });
+  const res = await request(app).get(`/api/v1/projects/${p.key}/history`).set(sess(rev));
+  const [decided, published] = res.body;
+  assert.equal(decided.action, "decided");
+  assert.equal(decided.event, "Answered");
+  assert.deepEqual(decided.lines, ["searchable: Keep it, and add it to Figma"]);
+  assert.deepEqual(decided.changes, { "removed-prop:searchable": "keep" });
+  assert.equal(decided.by, "Dina");
+  assert.equal(published.event, "Published for review");
+  assert.deepEqual(published.lines, []);
+});
