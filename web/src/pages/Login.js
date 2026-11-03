@@ -6,7 +6,7 @@ import { Button } from "components/button";
 import { Card } from "components/card";
 import { Field } from "components/field";
 import { Input } from "components/input";
-import { api, getSession, setSession } from "app/api";
+import { api, getSession, rememberTemporaryPassword, setSession } from "app/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -25,6 +25,7 @@ export default function Login() {
     try {
       const { token, user } = await api("POST", "/auth/login", { email, password });
       setSession({ token, user });
+      rememberTemporaryPassword(user.mustChangePassword ? password : null);
       navigate(user.mustChangePassword ? "/password" : "/projects", { replace: true });
     } catch (err) {
       setError(err.message);

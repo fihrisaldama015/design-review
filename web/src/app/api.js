@@ -16,12 +16,20 @@ export function setSession(session) {
   }
 }
 export function clearSession() {
+  forgetTemporaryPassword();
   try {
     sessionStorage.removeItem(KEY);
   } catch {
     /* nothing to clear */
   }
 }
+
+// The password a new account typed to log in with. It stays in memory only (never in storage, gone on reload), so the
+// forced "choose your own password" page does not ask for what the person has just typed.
+let temporaryPassword = null;
+export const rememberTemporaryPassword = (password) => { temporaryPassword = password || null; };
+export const getTemporaryPassword = () => temporaryPassword;
+export const forgetTemporaryPassword = () => { temporaryPassword = null; };
 
 /** Fetch wrapper: JSON in and out. A 401 clears the session and tells the app to go to /login. */
 export async function api(method, path, body) {
