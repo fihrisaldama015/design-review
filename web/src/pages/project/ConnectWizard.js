@@ -26,7 +26,7 @@ function Row({ n, title, summary, done, open, onToggle, children }) {
         onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onToggle(); } }}
         className="flex cursor-pointer items-center gap-4 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 typo-semi-bold-text-sm transition-colors duration-200 ${done ? "border-success bg-success text-base-color" : "border-primary text-primary"}`}>
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 typo-semi-bold-text-sm transition-colors duration-200 ${done ? "border-success bg-success-default text-base-color" : "border-primary text-primary"}`}>
           {done ? <Check size={16} strokeWidth={3} /> : n}
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
