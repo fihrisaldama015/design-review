@@ -14,3 +14,6 @@ export function timeAgo(iso, now = new Date()) {
 /** Local date as YYYY-MM-DD. */
 export const localDay = (now = new Date()) =>
   `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+/** A date and time in the browser's locale, or "Never" when there is none. */
+export const when = (iso) => (iso ? new Date(iso).toLocaleString() : "Never");
