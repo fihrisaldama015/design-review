@@ -99,7 +99,8 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
           </div>
           <p className="typo-regular-text-sm">The tool needs three things: this service's address, this project's key, and your token. Keep them in <strong>one</strong> of these two places:</p>
           <div className="rounded-default bg-surface-lv1 p-4 typo-regular-text-sm">
-            <p><strong>How the tool decides.</strong> It looks for the environment variables first (if it finds any of the three, it needs all three). If there are none, it reads the file. If it finds neither, it works alone on your computer and <strong>nobody can answer</strong>, because reviewers need this service. The tool does <strong>not</strong> read your app's <code>.env</code> file: export the variables in the shell that starts Claude Code, or use the file.</p>
+            <p><strong>Why a file is recommended on a laptop.</strong> The file sits in the project's folder, so every project keeps its own. Environment variables belong to the whole shell: they win over the file, so values exported for another project would silently replace this one's. Use environment variables only when you have a reason not to keep a file.</p>
+            <p className="mt-2"><strong>How the tool decides.</strong> It looks for the environment variables first (if it finds any of the three, it needs all three). If there are none, it reads the file. If it finds neither, it works alone on your computer and <strong>nobody can answer</strong>, because reviewers need this service. The tool does <strong>not</strong> read your app's <code>.env</code> file: export the variables in the shell that starts Claude Code, or use the file.</p>
           </div>
           <Tabs tabs={[{ value: "file", label: "A file (recommended)" }, { value: "env", label: "Environment variables" }]} value={where} onChange={setWhere} />
           {where === "file" ? (
@@ -146,6 +147,21 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
           {nav(4)}
         </>)}
       </ol>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h4 className="typo-semi-bold-text-base">At the end, your settings look like this</h4>
+          <p className="text-caption typo-regular-text-sm">Two places, because two programs read them. They are not one file: the sync tool does not read the app's <code>.env</code>, and the review page must never get the token.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <CodeBlock
+            title={where === "file" ? "For the sync tool: .figma-dump/review-api.json" : "For the sync tool: exported in the shell"}
+            code={where === "file" ? snippets.apiJson : snippets.toolEnv}
+            note="Read by the sync tool, on your computer only. This is where the token lives."
+          />
+          <CodeBlock title="For the review page: .env and your host's environment variables" code={snippets.pageEnv} note="Read by your app when it is built, on your computer and where it is deployed. No token." />
+        </div>
+      </section>
     </div>
   );
 }
