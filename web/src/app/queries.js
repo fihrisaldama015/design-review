@@ -60,4 +60,6 @@ export const useSaveSettings = (k) => {
 export const useCreateToken = (k) => useWrite((label) => api("POST", `/projects/${k}/tokens`, { label }), () => [keys.tokens(k), keys.overview(k)]);
 export const useRevokeToken = (k) => useWrite((id) => api("DELETE", `/projects/${k}/tokens/${id}`), () => [keys.tokens(k), keys.overview(k)]);
 export const useAddMember = (k) => useWrite((body) => api("POST", `/projects/${k}/members`, body), () => [keys.members(k), keys.overview(k)]);
+// A new temporary password for a member; the member list does not change, so nothing is invalidated.
+export const useResetMemberPassword = (k) => useWrite((id) => api("POST", `/projects/${k}/members/${id}/reset-password`), () => []);
 export const useRemoveMember = (k) => useWrite((id) => api("DELETE", `/projects/${k}/members/${id}`), () => [keys.members(k), keys.overview(k)]);

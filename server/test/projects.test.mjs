@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import { startDb, makeAdmin, makeProject, ORG } from "./helpers.mjs";
 import { connect } from "../src/db.mjs";
-import { ensureIndexes, User, Membership, Token, Review } from "../src/models.mjs";
+import { ensureIndexes, User, Membership, Token, Review, Project } from "../src/models.mjs";
 import { createApp } from "../src/app.mjs";
 import { signSession, hashPassword, newProjectToken } from "../src/auth.mjs";
 
@@ -257,4 +257,42 @@ test("overview does not count another project's rows, and is admin only", async 
   assert.equal((await request(app).get(`/api/v1/projects/${mine.key}/overview`)).status, 401);
   const foreign = await makeProject({ orgId: "other-org" });
   assert.equal((await request(app).get(`/api/v1/projects/${foreign.key}/overview`).set(as(admin))).status, 404);
+});
+
+test("reset-password gives a member a new temporary password: the old one stops working and the account must change it", async () => {
+  const admin = await makeAdmin();
+  const p = (await request(app).post("/api/v1/projects").set(as(admin)).send(body())).body;
+  const added = await request(app).post(`/api/v1/projects/${p.key}/members`).set(as(admin)).send({ email: "lost@x.io", name: "Lost" });
+  const first = added.body.tempPassword;
+  const id = added.body.user.id;
+  const oldSession = { Authorization: `Bearer ${signSession(await User.findById(id), env)}` };
+  const reset = await request(app).post(`/api/v1/projects/${p.key}/members/${id}/reset-password`).set(as(admin));
+  assert.equal(reset.status, 200);
+  assert.equal(reset.body.user.email, "lost@x.io");
+  assert.ok(reset.body.tempPassword && reset.body.tempPassword !== first);
+  assert.equal(reset.body.user.passwordHash, undefined);
+  const oldLogin = await request(app).post("/api/v1/auth/login").send({ email: "lost@x.io", password: first });
+  assert.equal(oldLogin.status, 401);
+  const newLogin = await request(app).post("/api/v1/auth/login").send({ email: "lost@x.io", password: reset.body.tempPassword });
+  assert.equal(newLogin.status, 200);
+  assert.equal(newLogin.body.user.mustChangePassword, true);
+  const locked = await request(app).get(`/api/v1/projects/${p.key}/reviews`).set(oldSession);
+  assert.equal(locked.status, 403);
+});
+
+test("reset-password refuses a non-member, an admin account, a bad id and a reviewer asking for it", async () => {
+  const admin = await makeAdmin();
+  const other = await makeAdmin();
+  const p = (await request(app).post("/api/v1/projects").set(as(admin)).send(body())).body;
+  const outsider = await makeMember();
+  const url = (id) => `/api/v1/projects/${p.key}/members/${id}/reset-password`;
+  assert.equal((await request(app).post(url(outsider._id)).set(as(admin))).status, 404);
+  assert.equal((await request(app).post(url("nope")).set(as(admin))).status, 404);
+  await Membership.create({ orgId: ORG, userId: other._id, projectId: (await Project.findOne({ key: p.key }))._id });
+  assert.equal((await request(app).post(url(other._id)).set(as(admin))).status, 403);
+  const member = await makeMember();
+  await request(app).post(`/api/v1/projects/${p.key}/members`).set(as(admin)).send({ email: member.email, name: member.name });
+  assert.equal((await request(app).post(url(member._id)).set(as(member))).status, 403);
+  const before = await User.findById(member._id);
+  assert.equal(before.mustChangePassword, false);
 });

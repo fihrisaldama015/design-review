@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, UserPlus, Users } from "lucide-react";
+import { KeyRound, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Alert } from "components/alert";
 import { Avatar } from "components/avatar";
 import { Button } from "components/button";
@@ -10,7 +10,7 @@ import { DataTable } from "components/data-table";
 import { EmptyState } from "components/empty-state";
 import { Field } from "components/field";
 import { Input } from "components/input";
-import { useAddMember, useMembers, useRemoveMember } from "app/queries";
+import { useAddMember, useMembers, useRemoveMember, useResetMemberPassword } from "app/queries";
 import { inviteMessage } from "app/setup";
 import { SecretAlert } from "app/SecretAlert";
 import { FieldHelp, LoadingRow, SectionTitle, TabIntro } from "app/ui";
@@ -20,12 +20,14 @@ export function Members({ project }) {
   const { data, error, isLoading } = useMembers(project.key);
   const addMember = useAddMember(project.key);
   const removeMember = useRemoveMember(project.key);
+  const resetPassword = useResetMemberPassword(project.key);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [temp, setTemp] = useState(null);
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [toRemove, setToRemove] = useState(null);
+  const [toReset, setToReset] = useState(null);
   const [acting, setActing] = useState(false);
 
   const add = async (e) => {
@@ -42,6 +44,22 @@ export function Members({ project }) {
       setFormError(err.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const reset = async () => {
+    setActing(true);
+    setFormError("");
+    setTemp(null);
+    try {
+      const res = await resetPassword.mutateAsync(toReset.id);
+      setTemp({ email: res.user.email, password: res.tempPassword, reset: true });
+      setToReset(null);
+    } catch (err) {
+      setToReset(null);
+      setFormError(err.message);
+    } finally {
+      setActing(false);
     }
   };
 
@@ -71,7 +89,17 @@ export function Members({ project }) {
       ),
     },
     { key: "email", header: "Email" },
-    { key: "actions", header: "", align: "right", render: (m) => <Button size="sm" kind="outlined" status="danger" onClick={() => setToRemove(m)}>Remove</Button> },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (m) => (
+        <div className="flex justify-end gap-2">
+          <Button size="sm" kind="outlined" prefixIcon={<KeyRound />} onClick={() => setToReset(m)}>Reset password</Button>
+          <Button size="sm" kind="outlined" status="danger" onClick={() => setToRemove(m)}>Remove</Button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -84,7 +112,7 @@ export function Members({ project }) {
       {(error || formError) && <Alert status="danger" kind="outlined">{error?.message || formError}</Alert>}
       {temp?.password && (
         <SecretAlert
-          title={`Temporary password for ${temp.email}`}
+          title={`${temp.reset ? "New temporary password" : "Temporary password"} for ${temp.email}`}
           secret={temp.password}
           noun="password"
           onDismiss={() => setTemp(null)}
@@ -113,6 +141,7 @@ export function Members({ project }) {
                 <p>If the email is new, an account is created and a <strong>temporary password is shown once</strong>. Copy it and send it to the person yourself. They change it when they first log in.</p>
                 <p>If the email already has an account (for example in another project), nothing is created: they simply get access to this project too.</p>
                 <p>Use their real name: it appears next to every decision they make.</p>
+                <p>If the temporary password was lost before you sent it, use <strong>Reset password</strong> in the list below: it makes a new one. Adding the same email again does not.</p>
               </FieldHelp>
             </div>
             <div>
@@ -151,6 +180,16 @@ export function Members({ project }) {
         </div>
       </section>
 
+      <ConfirmDialog
+        open={!!toReset}
+        onClose={() => setToReset(null)}
+        onConfirm={reset}
+        title="Reset this password?"
+        description={`${toReset?.name} gets a new temporary password and must choose their own at the next log in. Their current password stops working, and anyone logged in as them is locked out until then. You will see the new password once.`}
+        confirmLabel="Reset password"
+        tone="danger"
+        loading={acting}
+      />
       <ConfirmDialog
         open={!!toRemove}
         onClose={() => setToRemove(null)}

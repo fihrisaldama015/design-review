@@ -215,6 +215,22 @@ export function projectsRouter(env) {
     res.status(201).json({ user: { id: view.id, email: view.email, name: view.name, role: view.role }, ...(tempPassword ? { tempPassword } : {}) });
   }));
 
+  // A member who never saw the temporary password (or lost it) gets a new one, shown once. The account must change it at the
+  // next log in, and a session that is already open is locked until then. Only members of this project, never an admin account.
+  r.post("/projects/:project/members/:userId/reset-password", wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.userId)) throw new HttpError(404, "No such member.");
+    const isMember = await Membership.exists({ userId: req.params.userId, projectId: req.project._id });
+    const user = isMember ? await User.findOne({ _id: req.params.userId, orgId: req.project.orgId }) : null;
+    if (!user) throw new HttpError(404, "No such member.");
+    if (user.role === "admin") throw new HttpError(403, "An admin account is not reset here.");
+    const tempPassword = generatePassword();
+    user.passwordHash = await hashPassword(tempPassword);
+    user.mustChangePassword = true;
+    await user.save();
+    const view = userView(user);
+    res.json({ user: { id: view.id, email: view.email, name: view.name, role: view.role }, tempPassword });
+  }));
+
   r.delete("/projects/:project/members/:userId", wrap(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.userId)) throw new HttpError(404, "No such member.");
     await Membership.deleteOne({ userId: req.params.userId, projectId: req.project._id });
