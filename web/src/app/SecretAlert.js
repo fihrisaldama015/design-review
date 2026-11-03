@@ -5,8 +5,9 @@ import { Alert } from "components/alert";
 import { Button } from "components/button";
 
 /** A secret (token or temporary password) shown once, with a Copy button. */
-export function SecretAlert({ title, secret, noun, onDismiss, onCopy }) {
+export function SecretAlert({ title, secret, noun, onDismiss, onCopy, details, extraCopy }) {
   const [copied, setCopied] = useState(false);
+  const [extraCopied, setExtraCopied] = useState(false);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(secret);
@@ -16,6 +17,14 @@ export function SecretAlert({ title, secret, noun, onDismiss, onCopy }) {
       setCopied(false);
     }
   };
+  const copyExtra = async () => {
+    try {
+      await navigator.clipboard.writeText(extraCopy.text);
+      setExtraCopied(true);
+    } catch {
+      setExtraCopied(false);
+    }
+  };
   return (
     <Alert
       status="warning"
@@ -23,13 +32,21 @@ export function SecretAlert({ title, secret, noun, onDismiss, onCopy }) {
       title={title}
       onDismiss={onDismiss}
       action={
-        <Button size="sm" kind="outlined" prefixIcon={copied ? <Check /> : <Copy />} onClick={copy}>
-          {copied ? "Copied" : "Copy"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" kind="outlined" prefixIcon={copied ? <Check /> : <Copy />} onClick={copy}>
+            {copied ? "Copied" : extraCopy ? `Copy ${noun}` : "Copy"}
+          </Button>
+          {extraCopy && (
+            <Button size="sm" kind="outlined" prefixIcon={extraCopied ? <Check /> : <Copy />} onClick={copyExtra}>
+              {extraCopied ? "Copied" : extraCopy.label}
+            </Button>
+          )}
+        </div>
       }
     >
       <code data-testid="secret" className="break-all">{secret}</code>
       <p>You will not see this {noun} again.</p>
+      {details}
     </Alert>
   );
 }
@@ -44,4 +61,8 @@ SecretAlert.propTypes = {
   onDismiss: PropTypes.func,
   /** Called once the secret was copied with the Copy button. */
   onCopy: PropTypes.func,
+  /** Extra lines shown under the secret, for example where to use it. */
+  details: PropTypes.node,
+  /** A second Copy button for a longer text that holds the secret, e.g. a ready-to-send message: { label, text }. */
+  extraCopy: PropTypes.shape({ label: PropTypes.string.isRequired, text: PropTypes.string.isRequired }),
 };

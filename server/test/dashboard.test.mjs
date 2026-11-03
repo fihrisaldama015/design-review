@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { eventKind } from "../src/eventLabels.mjs";
-import { connectSnippets, setupChecklist, TOKEN_PLACEHOLDER } from "../../web/src/app/setup.js";
+import { connectSnippets, inviteMessage, setupChecklist, TOKEN_PLACEHOLDER } from "../../web/src/app/setup.js";
 
 test("eventKind classifies every audit action and unknown text as other", () => {
   assert.equal(eventKind("published"), "published");
@@ -83,4 +83,22 @@ test("connectSnippets envFile holds both groups in one file, and only the tool's
   assert.ok(page.includes("PUBLIC_REVIEW_SERVICE_URL=http://localhost:5010") && !page.includes("/api/v1"), "the page's address is the origin only");
   assert.ok(!page.includes(token), "the review page's lines never contain the token");
   assert.ok(connectSnippets({ origin: "http://x", project: "p" }).envFile.includes(`REVIEW_API_KEY=${TOKEN_PLACEHOLDER}`));
+});
+
+test("the invite message has the address, the email, the temporary password and the change-it note", () => {
+  const msg = inviteMessage({ reviewUrl: " https://app.example.com/review ", email: "siti@x.io", password: "Tmp-1" });
+  assert.deepEqual(msg.split("\n"), [
+    "Log in to the design review at https://app.example.com/review",
+    "Email: siti@x.io",
+    "Temporary password: Tmp-1",
+    "You choose your own password the first time you log in.",
+  ]);
+});
+
+test("the invite message leaves the address line out when the project has no review page URL", () => {
+  for (const reviewUrl of ["", "  ", undefined, null]) {
+    const msg = inviteMessage({ reviewUrl, email: "siti@x.io", password: "Tmp-1" });
+    assert.equal(msg.split("\n")[0], "Log in to the design review.");
+    assert.ok(!msg.includes("undefined") && !msg.includes("null"));
+  }
 });

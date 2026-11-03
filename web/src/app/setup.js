@@ -53,3 +53,15 @@ export function setupChecklist(project, { activeTokens, members, reviews } = {})
   const done = items.filter((i) => i.done).length;
   return { items, done, total: items.length, complete: done === items.length };
 }
+
+/** The text an admin sends to a new member: where to log in, with what, and that the password is theirs to change.
+ *  The address line is left out when the project has no review page URL yet. */
+export function inviteMessage({ reviewUrl, email, password }) {
+  const url = typeof reviewUrl === "string" ? reviewUrl.trim() : "";
+  return [
+    url ? `Log in to the design review at ${url}` : "Log in to the design review.",
+    `Email: ${email}`,
+    `Temporary password: ${password}`,
+    "You choose your own password the first time you log in.",
+  ].join("\n");
+}

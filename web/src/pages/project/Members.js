@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ShieldCheck, UserPlus, Users } from "lucide-react";
 import { Alert } from "components/alert";
 import { Avatar } from "components/avatar";
@@ -10,6 +11,7 @@ import { EmptyState } from "components/empty-state";
 import { Field } from "components/field";
 import { Input } from "components/input";
 import { useAddMember, useMembers, useRemoveMember } from "app/queries";
+import { inviteMessage } from "app/setup";
 import { SecretAlert } from "app/SecretAlert";
 import { FieldHelp, LoadingRow, SectionTitle, TabIntro } from "app/ui";
 
@@ -80,7 +82,18 @@ export function Members({ project }) {
 
       {isLoading && <LoadingRow text="Loading the members…" />}
       {(error || formError) && <Alert status="danger" kind="outlined">{error?.message || formError}</Alert>}
-      {temp?.password && <SecretAlert title={`Temporary password for ${temp.email}`} secret={temp.password} noun="password" onDismiss={() => setTemp(null)} />}
+      {temp?.password && (
+        <SecretAlert
+          title={`Temporary password for ${temp.email}`}
+          secret={temp.password}
+          noun="password"
+          onDismiss={() => setTemp(null)}
+          extraCopy={{ label: "Copy invite message", text: inviteMessage({ reviewUrl: project.reviewUrl, email: temp.email, password: temp.password }) }}
+          details={project.reviewUrl
+            ? <p className="mt-2">Log in at <code className="break-all">{project.reviewUrl}</code>. <strong>Copy invite message</strong> puts the address, the email and this password in one text to send.</p>
+            : <p className="mt-2">This project has no review page link yet, so the invite message has no address. Add it in <Link className="underline" to="?tab=settings">Settings</Link> (Review page URL).</p>}
+        />
+      )}
       {temp?.existing && <Alert status="info" kind="outlined" onDismiss={() => setTemp(null)}>{temp.existing} already had an account and now has access to this project.</Alert>}
 
       <section className="flex flex-col gap-4">
