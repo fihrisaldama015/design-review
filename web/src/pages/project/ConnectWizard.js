@@ -98,6 +98,9 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
             <p><strong>First, the tool must be in your project.</strong> It is the Figma-to-Storybook skill: the folder <code>.claude/skills/building-storybook-from-figma</code> and the <code>scripts/figma</code> scripts. A project that already has them can skip this. For another project, copy them from a project that has them: the skill's <code>reference/setup.md</code> explains the install. There is no shared package yet.</p>
           </div>
           <p className="typo-regular-text-sm">The tool needs three things: this service's address, this project's key, and your token. Keep them in <strong>one</strong> of these two places:</p>
+          <div className="rounded-default bg-surface-lv1 p-4 typo-regular-text-sm">
+            <p><strong>How the tool decides.</strong> It looks for the environment variables first (if it finds any of the three, it needs all three). If there are none, it reads the file. If it finds neither, it works alone on your computer and <strong>nobody can answer</strong>, because reviewers need this service. The tool does <strong>not</strong> read your app's <code>.env</code> file: export the variables in the shell that starts Claude Code, or use the file.</p>
+          </div>
           <Tabs tabs={[{ value: "file", label: "A file (recommended)" }, { value: "env", label: "Environment variables" }]} value={where} onChange={setWhere} />
           {where === "file" ? (
             <>
