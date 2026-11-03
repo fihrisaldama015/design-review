@@ -218,3 +218,43 @@ test("create and patch responses have no counts", async () => {
   const patched = await request(app).patch(`/api/v1/projects/${b.key}`).set(as(admin)).send({ name: "N" });
   assert.equal("counts" in patched.body, false);
 });
+
+test("overview counts active and used tokens, members and reviews in one answer", async () => {
+  const admin = await makeAdmin();
+  const p = await makeProject();
+  const empty = await request(app).get(`/api/v1/projects/${p.key}/overview`).set(as(admin));
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body, { activeTokens: 0, usedTokens: 0, members: 0, reviews: 0 });
+
+  const a = await request(app).post(`/api/v1/projects/${p.key}/tokens`).set(as(admin)).send({ label: "a" });
+  const b = await request(app).post(`/api/v1/projects/${p.key}/tokens`).set(as(admin)).send({ label: "b" });
+  const c = await request(app).post(`/api/v1/projects/${p.key}/tokens`).set(as(admin)).send({ label: "c" });
+  await Token.updateOne({ _id: a.body.id }, { lastUsedAt: new Date() });
+  await Token.updateOne({ _id: b.body.id }, { lastUsedAt: new Date() });
+  await request(app).delete(`/api/v1/projects/${p.key}/tokens/${b.body.id}`).set(as(admin)); // revoked: neither active nor used
+  const m = await makeMember();
+  await Membership.create({ orgId: ORG, userId: m._id, projectId: p._id });
+  await mkReview(p, "button", "pending");
+  await mkReview(p, "select", "applied");
+
+  const res = await request(app).get(`/api/v1/projects/${p.key}/overview`).set(as(admin));
+  assert.deepEqual(res.body, { activeTokens: 2, usedTokens: 1, members: 1, reviews: 2 });
+  assert.ok(c.body.id);
+});
+
+test("overview does not count another project's rows, and is admin only", async () => {
+  const admin = await makeAdmin();
+  const mine = await makeProject();
+  const other = await makeProject();
+  await request(app).post(`/api/v1/projects/${other.key}/tokens`).set(as(admin)).send({ label: "x" });
+  await mkReview(other, "alert", "pending");
+  const res = await request(app).get(`/api/v1/projects/${mine.key}/overview`).set(as(admin));
+  assert.deepEqual(res.body, { activeTokens: 0, usedTokens: 0, members: 0, reviews: 0 });
+
+  const member = await makeMember();
+  await Membership.create({ orgId: ORG, userId: member._id, projectId: mine._id });
+  assert.equal((await request(app).get(`/api/v1/projects/${mine.key}/overview`).set(as(member))).status, 403);
+  assert.equal((await request(app).get(`/api/v1/projects/${mine.key}/overview`)).status, 401);
+  const foreign = await makeProject({ orgId: "other-org" });
+  assert.equal((await request(app).get(`/api/v1/projects/${foreign.key}/overview`).set(as(admin))).status, 404);
+});

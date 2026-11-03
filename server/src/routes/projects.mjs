@@ -144,6 +144,18 @@ export function projectsRouter(env) {
     res.json(projectView(req.project));
   }));
 
+  // The setup checklist needs only counts: one answer (four counts in parallel) instead of three lists.
+  r.get("/projects/:project/overview", wrap(async (req, res) => {
+    const base = { projectId: req.project._id, orgId: req.project.orgId };
+    const [activeTokens, usedTokens, members, reviews] = await Promise.all([
+      Token.countDocuments({ ...base, revokedAt: null }),
+      Token.countDocuments({ ...base, revokedAt: null, lastUsedAt: { $ne: null } }),
+      Membership.countDocuments({ projectId: req.project._id }),
+      Review.countDocuments({ projectId: req.project._id }),
+    ]);
+    res.json({ activeTokens, usedTokens, members, reviews });
+  }));
+
   r.get("/projects/:project/tokens", wrap(async (req, res) => {
     const rows = await Token.find({ projectId: req.project._id, orgId: req.project.orgId }).sort({ createdAt: 1 });
     res.json(rows.map((t) => ({
