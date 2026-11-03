@@ -35,3 +35,14 @@ export function changeLines(changes, migrateBy) {
     ([id, choice]) => `${itemName(id)}: ${choiceLabel(choice)}${migrateBy?.[id] ? `, migrate by ${migrateBy[id]}` : ""}`,
   );
 }
+
+// What kind of event an audit entry is, so the history can give each kind its own icon and weight.
+export function eventKind(action) {
+  if (typeof action !== "string") return "other";
+  if (action === "decided") return "decided";
+  if (action === "applied") return "applied";
+  if (action.startsWith("Figma changed")) return "reopened";
+  if (action.startsWith("republished")) return "synced";
+  if (action.startsWith("published")) return "published";
+  return "other";
+}

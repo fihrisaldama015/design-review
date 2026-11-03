@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { HttpError, canUseProject } from "../auth.mjs";
 import { Review } from "../models.mjs";
-import { eventLabel, changeLines } from "../eventLabels.mjs";
+import { eventLabel, changeLines, eventKind } from "../eventLabels.mjs";
 import { decide, markApplied, publish, slug as slugOf, summary } from "../reviewLogic.mjs";
 import { loadProject } from "./projects.mjs";
 
@@ -121,7 +121,7 @@ export function reviewsRouter(env) {
     const entries = [];
     for (const row of rows) {
       for (const a of row.audit || []) {
-        entries.push({ component: row.component, slug: row.slug, at: a.at, by: a.by, action: a.action, changes: a.changes, migrateBy: a.migrateBy, note: a.note, event: eventLabel(a.action), lines: changeLines(a.changes, a.migrateBy) });
+        entries.push({ component: row.component, slug: row.slug, at: a.at, by: a.by, action: a.action, changes: a.changes, migrateBy: a.migrateBy, note: a.note, event: eventLabel(a.action), kind: eventKind(a.action), lines: changeLines(a.changes, a.migrateBy) });
       }
     }
     entries.reverse(); // stable sort below then puts later-inserted entries first on equal times
