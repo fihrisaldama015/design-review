@@ -1,12 +1,12 @@
 // Plain-language labels for audit events and decisions (contract C1). Pure: the web side has no test runner,
 // so the history route sends these ready-made. The MVP review page keeps its own copy with the same strings.
 const EVENTS = {
-  published: "Published for review",
-  "published (new cycle)": "Published again, new review",
+  published: "Sent for review",
+  "published (new cycle)": "Sent for review again, as a new review",
   "Figma changed: earlier answers dropped": "Figma changed: earlier answers were cleared, please answer again",
   "republished (same Figma state, answers kept)": "Synced again, nothing changed",
-  decided: "Answered",
-  applied: "Applied by the developer",
+  decided: "Decision saved",
+  applied: "Applied in the code",
 };
 const CHOICES = {
   "follow-figma": "Remove it, to match Figma",

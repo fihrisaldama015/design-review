@@ -313,10 +313,10 @@ test("history entries carry event and lines and keep the old fields", async () =
   const res = await request(app).get(`/api/v1/projects/${p.key}/history`).set(sess(rev));
   const [decided, published] = res.body;
   assert.equal(decided.action, "decided");
-  assert.equal(decided.event, "Answered");
+  assert.equal(decided.event, "Decision saved");
   assert.deepEqual(decided.lines, ["searchable: Keep it, and add it to Figma"]);
   assert.deepEqual(decided.changes, { "removed-prop:searchable": "keep" });
   assert.equal(decided.by, "Dina");
-  assert.equal(published.event, "Published for review");
+  assert.equal(published.event, "Sent for review");
   assert.deepEqual(published.lines, []);
 });

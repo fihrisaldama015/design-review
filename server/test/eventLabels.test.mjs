@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { eventLabel, choiceLabel, itemName, changeLines } from "../src/eventLabels.mjs";
 
 test("eventLabel maps every known audit action and passes unknown text through", () => {
-  assert.equal(eventLabel("published"), "Published for review");
-  assert.equal(eventLabel("published (new cycle)"), "Published again, new review");
+  assert.equal(eventLabel("published"), "Sent for review");
+  assert.equal(eventLabel("published (new cycle)"), "Sent for review again, as a new review");
   assert.equal(eventLabel("Figma changed: earlier answers dropped"), "Figma changed: earlier answers were cleared, please answer again");
   assert.equal(eventLabel("republished (same Figma state, answers kept)"), "Synced again, nothing changed");
-  assert.equal(eventLabel("decided"), "Answered");
-  assert.equal(eventLabel("applied"), "Applied by the developer");
+  assert.equal(eventLabel("decided"), "Decision saved");
+  assert.equal(eventLabel("applied"), "Applied in the code");
   assert.equal(eventLabel("something else"), "something else");
   assert.equal(eventLabel(undefined), "");
   assert.equal(eventLabel(5), "");
