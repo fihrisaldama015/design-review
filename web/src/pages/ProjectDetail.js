@@ -303,10 +303,12 @@ export default function ProjectDetail() {
 
   const tabs = [
     { value: "reviews", label: "Reviews" },
-    { value: "settings", label: "Settings" },
-    ...(isAdmin ? [{ value: "tokens", label: "Tokens" }, { value: "members", label: "Members" }] : []),
+    ...(isAdmin ? [{ value: "settings", label: "Settings" }, { value: "tokens", label: "Tokens" }, { value: "members", label: "Members" }] : []),
     { value: "history", label: "History" },
   ];
+
+  // A stale tab (for example Settings for a member) falls back to Reviews.
+  const active = tabs.some((t) => t.value === tab) ? tab : "reviews";
 
   return (
     <>
@@ -328,12 +330,23 @@ export default function ProjectDetail() {
               )
             }
           />
-          <Tabs tabs={tabs} value={tab} onChange={setTab} />
-          {tab === "reviews" && <ReviewsTab key={project.key} project={project} />}
-          {tab === "settings" && <Settings key={project.key} project={project} isAdmin={isAdmin} onSaved={reload} />}
-          {tab === "tokens" && isAdmin && <Tokens project={project} />}
-          {tab === "members" && isAdmin && <Members project={project} />}
-          {tab === "history" && <History project={project} />}
+          <Tabs tabs={tabs} value={active} onChange={setTab} />
+          {active === "reviews" && (
+            <>
+              {!project.reviewUrl && (
+                <Alert status="info" kind="outlined" title={isAdmin ? "The review page link is not set" : undefined}>
+                  {isAdmin
+                    ? "Add it in Settings so reviewers can open the review page."
+                    : "The link to the review page is not set yet. Ask an admin to add it."}
+                </Alert>
+              )}
+              <ReviewsTab key={project.key} project={project} />
+            </>
+          )}
+          {active === "settings" && isAdmin && <Settings key={project.key} project={project} isAdmin={isAdmin} onSaved={reload} />}
+          {active === "tokens" && isAdmin && <Tokens project={project} />}
+          {active === "members" && isAdmin && <Members project={project} />}
+          {active === "history" && <History project={project} />}
         </>
       )}
     </>
