@@ -43,8 +43,8 @@ export async function api(method, path, body) {
   if (res.status === 401 && session && path !== "/auth/login" && path !== "/auth/password") {
     clearSession();
     window.dispatchEvent(new Event("dr-unauthorized"));
-    throw new Error(data?.error || "Your session expired. Log in again.");
+    throw Object.assign(new Error(data?.error || "Your session expired. Log in again."), { status: 401 });
   }
-  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status}).`);
+  if (!res.ok) throw Object.assign(new Error(data?.error || `Request failed (${res.status}).`), { status: res.status });
   return data;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { GitCompare, KeyRound, LogOut } from "lucide-react";
 import { Avatar } from "components/avatar";
 import { Badge } from "components/badge";
@@ -16,9 +17,11 @@ const navClass = ({ isActive }) => `rounded-default px-3 py-1.5 typo-medium-text
 /** Shell: a top bar with the product, Projects and the Guide, the current user (with their role) and Log out. */
 function Shell() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const session = getSession();
   const logout = () => {
     clearSession();
+    queryClient.clear(); // nothing of this person stays in memory for the next one
     navigate("/login");
   };
   return (
@@ -62,15 +65,17 @@ function RequireSession({ allowPasswordPage = false }) {
 
 export default function App() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [, bump] = useState(0);
   useEffect(() => {
     const onExpired = () => {
+      queryClient.clear();
       bump((n) => n + 1);
       navigate("/login", { state: { expired: true } });
     };
     window.addEventListener("dr-unauthorized", onExpired);
     return () => window.removeEventListener("dr-unauthorized", onExpired);
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   return (
     <Routes>

@@ -38,13 +38,16 @@ export function connectSnippets({ origin, project, token } = {}) {
   };
 }
 
-/** The five things that make a project work, each marked done from what the service already knows. `tab` is where to do it. */
-export function setupChecklist(project, { tokens, members, reviews } = {}) {
+/**
+ * The five things that make a project work, each marked done from what the service already knows (the counts of GET .../overview).
+ * `tab` is where to do it.
+ */
+export function setupChecklist(project, { activeTokens, members, reviews } = {}) {
   const items = [
-    { id: "token", label: "Create a project token", help: "The sync tool uses it to publish reviews to this project.", done: (tokens ?? []).some((t) => !t.revokedAt), tab: "tokens" },
+    { id: "token", label: "Create a project token", help: "The sync tool uses it to publish reviews to this project.", done: (activeTokens ?? 0) > 0, tab: "tokens" },
     { id: "origin", label: "Allow the address of the review page", help: "Without it the browser blocks the review page from talking to this service.", done: (project?.allowedOrigins ?? []).length > 0, tab: "settings" },
     { id: "reviewUrl", label: "Add the review page link", help: "Gives reviewers a button that opens the page where they decide.", done: Boolean(project?.reviewUrl), tab: "settings" },
-    { id: "member", label: "Add a reviewer", help: "The designer or product owner who decides. They log in with their own account.", done: (members ?? []).length > 0, tab: "members" },
+    { id: "member", label: "Add a reviewer", help: "The designer or product owner who decides. They log in with their own account.", done: (members ?? 0) > 0, tab: "members" },
     { id: "review", label: "Publish the first review", help: "Run the Figma sync in the project. A review appears here when a component differs from Figma.", done: (reviews ?? 0) > 0, tab: "tokens" },
   ];
   const done = items.filter((i) => i.done).length;

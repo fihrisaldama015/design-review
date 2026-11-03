@@ -9,14 +9,15 @@ import { DataTable } from "components/data-table";
 import { EmptyState } from "components/empty-state";
 import { Field } from "components/field";
 import { Input } from "components/input";
-import { api } from "app/api";
+import { useAddMember, useMembers, useRemoveMember } from "app/queries";
 import { SecretAlert } from "app/SecretAlert";
-import { useLoad } from "app/useAsync";
-import { FieldHelp, SectionTitle, TabIntro } from "app/ui";
+import { FieldHelp, LoadingRow, SectionTitle, TabIntro } from "app/ui";
 
 /** The people who can open this project's reviews and decide. Admins only. */
-export function Members({ project, onChanged }) {
-  const { data, error, reload } = useLoad(() => api("GET", `/projects/${project.key}/members`), [project.key]);
+export function Members({ project }) {
+  const { data, error, isLoading } = useMembers(project.key);
+  const addMember = useAddMember(project.key);
+  const removeMember = useRemoveMember(project.key);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [temp, setTemp] = useState(null);
@@ -31,12 +32,10 @@ export function Members({ project, onChanged }) {
     setFormError("");
     setTemp(null);
     try {
-      const res = await api("POST", `/projects/${project.key}/members`, { email, name });
+      const res = await addMember.mutateAsync({ email, name });
       setTemp(res.tempPassword ? { email: res.user.email, password: res.tempPassword } : { existing: res.user.email });
       setEmail("");
       setName("");
-      reload();
-      onChanged?.();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -48,10 +47,8 @@ export function Members({ project, onChanged }) {
     setActing(true);
     setFormError("");
     try {
-      await api("DELETE", `/projects/${project.key}/members/${toRemove.id}`);
+      await removeMember.mutateAsync(toRemove.id);
       setToRemove(null);
-      reload();
-      onChanged?.();
     } catch (err) {
       setToRemove(null);
       setFormError(err.message);
@@ -81,7 +78,8 @@ export function Members({ project, onChanged }) {
         <p>Designers and product owners are members. A member logs in with their own account, sees only the projects they were added to, and answers on the review page. The sync tool needs no account: it uses a token.</p>
       </TabIntro>
 
-      {(error || formError) && <Alert status="danger" kind="outlined">{error || formError}</Alert>}
+      {isLoading && <LoadingRow text="Loading the members…" />}
+      {(error || formError) && <Alert status="danger" kind="outlined">{error?.message || formError}</Alert>}
       {temp?.password && <SecretAlert title={`Temporary password for ${temp.email}`} secret={temp.password} noun="password" onDismiss={() => setTemp(null)} />}
       {temp?.existing && <Alert status="info" kind="outlined" onDismiss={() => setTemp(null)}>{temp.existing} already had an account and now has access to this project.</Alert>}
 

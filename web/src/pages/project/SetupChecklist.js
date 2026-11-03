@@ -9,8 +9,8 @@ import { setupChecklist } from "app/setup";
 const WHERE = { tokens: "Tokens & setup", settings: "Settings", members: "Members" };
 
 /** What is left to make a project work, from what the service already knows. Admins only. */
-export function SetupChecklist({ project, tokens, members, reviews, onGo }) {
-  const c = setupChecklist(project, { tokens, members, reviews });
+export function SetupChecklist({ project, overview, onGo }) {
+  const c = setupChecklist(project, overview);
   const [open, setOpen] = useState(null); // null: open while something is left, closed when all is done
   const shown = open ?? !c.complete;
   return (

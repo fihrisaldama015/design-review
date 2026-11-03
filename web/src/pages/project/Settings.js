@@ -6,11 +6,12 @@ import { Card } from "components/card";
 import { Field } from "components/field";
 import { Input } from "components/input";
 import { Textarea } from "components/textarea";
-import { api } from "app/api";
+import { useSaveSettings } from "app/queries";
 import { FieldHelp, SectionTitle, TabIntro } from "app/ui";
 
 /** The settings of a project: its name, the links reviewers use, and the addresses allowed to talk to the service. */
-export function Settings({ project, isAdmin, onSaved }) {
+export function Settings({ project, isAdmin }) {
+  const save = useSaveSettings(project.key);
   const [form, setForm] = useState({
     name: project.name,
     figmaFileKey: project.figmaFileKey || "",
@@ -32,12 +33,11 @@ export function Settings({ project, isAdmin, onSaved }) {
     setError("");
     try {
       const { origins, ...rest } = form;
-      await api("PATCH", `/projects/${project.key}`, {
+      await save.mutateAsync({
         ...rest,
         allowedOrigins: origins.split("\n").map((o) => o.trim()).filter(Boolean),
       });
       setSaved(true);
-      onSaved();
     } catch (err) {
       setError(err.message);
     } finally {

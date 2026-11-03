@@ -9,19 +9,20 @@ import { DataTable } from "components/data-table";
 import { EmptyState } from "components/empty-state";
 import { Field } from "components/field";
 import { Input } from "components/input";
-import { api } from "app/api";
 import { TROUBLESHOOTING } from "app/help";
+import { useCreateToken, useRevokeToken, useTokens } from "app/queries";
 import { SecretAlert } from "app/SecretAlert";
 import { connectSnippets } from "app/setup";
 import { when } from "app/timeAgo";
-import { useLoad } from "app/useAsync";
 import { Checkbox } from "components/checkbox";
-import { FaqList, FieldHelp, SectionTitle, TabIntro } from "app/ui";
+import { FaqList, FieldHelp, LoadingRow, SectionTitle, TabIntro } from "app/ui";
 import { ConnectWizard } from "pages/project/ConnectWizard";
 
 /** Tokens of a project and the guide that connects the project to this service. Admins only. */
-export function Tokens({ project, reviewsCount, onChanged, onGo }) {
-  const { data, error, reload } = useLoad(() => api("GET", `/projects/${project.key}/tokens`), [project.key]);
+export function Tokens({ project, reviewsCount, onGo }) {
+  const { data, error, isLoading } = useTokens(project.key);
+  const createToken = useCreateToken(project.key);
+  const revokeToken = useRevokeToken(project.key);
   const [label, setLabel] = useState("");
   const [created, setCreated] = useState(null);
   const [secret, setSecret] = useState(""); // the token this page created: kept in memory only, so the next steps can fill it in. A refresh forgets it.
@@ -40,13 +41,11 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
     setBusy(true);
     setFormError("");
     try {
-      const res = await api("POST", `/projects/${project.key}/tokens`, { label });
+      const res = await createToken.mutateAsync(label);
       setCreated(res);
       setSecret(res.token);
       setCopied(false);
       setLabel("");
-      reload();
-      onChanged?.();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -58,10 +57,8 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
     setActing(true);
     setFormError("");
     try {
-      await api("DELETE", `/projects/${project.key}/tokens/${toRevoke.id}`);
+      await revokeToken.mutateAsync(toRevoke.id);
       setToRevoke(null);
-      reload();
-      onChanged?.();
     } catch (err) {
       setToRevoke(null);
       setFormError(err.message);
@@ -89,7 +86,8 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
         <p>Two different programs need to know about this service: the <strong>sync tool</strong> that sends reviews (it needs a secret token), and the <strong>review page</strong> in the browser that shows them (it must never get the token). The steps below set up both.</p>
       </TabIntro>
 
-      {(error || formError) && <Alert status="danger" kind="outlined">{error || formError}</Alert>}
+      {isLoading && <LoadingRow text="Loading the tokens…" />}
+      {(error || formError) && <Alert status="danger" kind="outlined">{error?.message || formError}</Alert>}
       <section className="flex flex-col gap-4">
         <SectionTitle icon={<Plug size={20} />} title="Connect your project" description="Five short steps, one open at a time. The code blocks already contain this project's address and key: copy them and paste your token where it says." />
         <ConnectWizard

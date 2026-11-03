@@ -4,10 +4,9 @@ import { Alert } from "components/alert";
 import { Card } from "components/card";
 import { EmptyState } from "components/empty-state";
 import { Select } from "components/select";
-import { api } from "app/api";
+import { useHistory } from "app/queries";
 import { timeAgo, when } from "app/timeAgo";
-import { useLoad } from "app/useAsync";
-import { TabIntro } from "app/ui";
+import { LoadingRow, TabIntro } from "app/ui";
 
 const ALL = "__all__";
 
@@ -26,7 +25,7 @@ const actor = (h) => (h.by === "tool" ? (h.kind === "applied" ? "Developer" : "F
 
 /** Everything that happened to this project's reviews, newest first. */
 export function History({ project }) {
-  const { data, error } = useLoad(() => api("GET", `/projects/${project.key}/history`), [project.key]);
+  const { data, error, isLoading } = useHistory(project.key);
   const [component, setComponent] = useState(ALL);
   const entries = data || [];
   const names = [...new Set(entries.map((h) => h.component).filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -38,7 +37,8 @@ export function History({ project }) {
       <TabIntro icon={<HistoryIcon size={24} />} title="Everything that happened to this project's reviews">
         <p>When a review was sent, who decided what and why, and when the developer applied it. Newest first. <strong>Decisions</strong> and <strong>applied</strong> entries are bold; routine syncs are grey.</p>
       </TabIntro>
-      {error && <Alert status="danger" kind="outlined">{error}</Alert>}
+      {isLoading && <LoadingRow text="Loading the history…" />}
+      {error && <Alert status="danger" kind="outlined">{error.message}</Alert>}
       {data && (
         <>
           <Card padded={false}>

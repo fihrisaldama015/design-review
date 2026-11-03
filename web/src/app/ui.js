@@ -2,6 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { Check, ChevronDown, CircleHelp, Copy, FileText } from "lucide-react";
 import { Button } from "components/button";
+import { Spinner } from "components/spinner";
 import { Collapse } from "app/Collapse";
 
 /** A block of text to copy (a file, a command, settings), with a title and a Copy button. */
@@ -144,4 +145,33 @@ export function FaqList({ items }) {
 FaqList.propTypes = {
   /** The questions: `{ q, a }`. */
   items: PropTypes.arrayOf(PropTypes.shape({ q: PropTypes.string.isRequired, a: PropTypes.string.isRequired })).isRequired,
+};
+
+/** What a screen shows while it has nothing yet to show (the first visit only: later visits show the cache). */
+export function LoadingRow({ text = "Loading…" }) {
+  return (
+    <p className="flex items-center gap-2 text-caption typo-regular-text-sm" role="status">
+      <Spinner size={16} />
+      {text}
+    </p>
+  );
+}
+LoadingRow.propTypes = {
+  /** What is loading. */
+  text: PropTypes.string,
+};
+
+/** A small "Updating…" that shows while the cache refreshes behind data that is already on screen. */
+export function Updating({ active }) {
+  if (!active) return null;
+  return (
+    <span className="flex items-center gap-1 text-caption typo-regular-text-sm" role="status">
+      <Spinner size={12} />
+      Updating…
+    </span>
+  );
+}
+Updating.propTypes = {
+  /** Whether a refresh is running. */
+  active: PropTypes.bool,
 };

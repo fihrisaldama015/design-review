@@ -36,22 +36,21 @@ test("connectSnippets uses a placeholder when the project is not known yet", () 
   assert.equal(connectSnippets().apiUrl, "/api/v1");
 });
 
-test("setupChecklist marks each step done from the project, tokens, members and reviews", () => {
-  const empty = setupChecklist({ allowedOrigins: [], reviewUrl: "" }, { tokens: [], members: [], reviews: 0 });
+test("setupChecklist marks each step done from the project and the overview counts", () => {
+  const empty = setupChecklist({ allowedOrigins: [], reviewUrl: "" }, { activeTokens: 0, members: 0, reviews: 0 });
   assert.deepEqual(empty.items.map((i) => [i.id, i.done]), [["token", false], ["origin", false], ["reviewUrl", false], ["member", false], ["review", false]]);
   assert.equal(empty.done, 0);
   assert.equal(empty.total, 5);
   assert.equal(empty.complete, false);
 
-  const full = setupChecklist({ allowedOrigins: ["http://localhost:5002"], reviewUrl: "http://localhost:5002/review" }, { tokens: [{ revokedAt: null }], members: [{ id: "u1" }], reviews: 2 });
+  const full = setupChecklist({ allowedOrigins: ["http://localhost:5002"], reviewUrl: "http://localhost:5002/review" }, { activeTokens: 1, members: 1, reviews: 2 });
   assert.equal(full.done, 5);
   assert.equal(full.complete, true);
   assert.deepEqual(full.items.map((i) => i.tab), ["tokens", "settings", "settings", "members", "tokens"]);
 });
 
-test("setupChecklist ignores revoked tokens and survives missing data", () => {
-  const c = setupChecklist(undefined, { tokens: [{ revokedAt: "2026-11-01" }] });
-  assert.equal(c.items.find((i) => i.id === "token").done, false);
+test("setupChecklist survives missing data", () => {
+  assert.equal(setupChecklist(undefined, { activeTokens: 0 }).items.find((i) => i.id === "token").done, false);
   assert.equal(setupChecklist(null, undefined).done, 0);
 });
 

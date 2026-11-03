@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
 import { Alert } from "components/alert";
 import { Button } from "components/button";
 import { Tabs } from "components/tabs";
-import { api, getSession } from "app/api";
-import { useLoad } from "app/useAsync";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { getSession } from "app/api";
+import { prefetchProject, useOverview, useProjects } from "app/queries";
+import { LoadingRow, Updating } from "app/ui";
 import { ReviewsTab } from "pages/ReviewsTab";
 import { History } from "pages/project/History";
 import { Members } from "pages/project/Members";
@@ -19,22 +21,18 @@ const figmaUrl = (key) => (key ? `https://www.figma.com/design/${encodeURICompon
 export default function ProjectDetail() {
   const { key } = useParams();
   const isAdmin = getSession().user.role === "admin";
-  const { data: projects, error, loading, reload } = useLoad(() => api("GET", "/projects"), []);
+  const queryClient = useQueryClient();
+  const { data: projects, error, isLoading: loading } = useProjects();
   // The open tab lives in the address (?tab=members), so a refresh, a shared link and the Back button all keep it.
   const [params, setParams] = useSearchParams();
   const requested = params.get("tab");
   const setTab = (value, { replace = false } = {}) => setParams((p) => { const next = new URLSearchParams(p); next.set("tab", value); return next; }, { replace });
-  const [bump, setBump] = useState(0); // a token, a member or a settings change refreshes the checklist
   const project = projects?.find((p) => p.key === key);
   const known = Boolean(project);
-  const setup = useLoad(
-    () => (isAdmin && known
-      ? Promise.all([api("GET", `/projects/${key}/tokens`), api("GET", `/projects/${key}/members`), api("GET", `/projects/${key}/reviews`)])
-      : Promise.resolve(null)),
-    [key, isAdmin, known, bump],
-  );
-  const changed = () => setBump((n) => n + 1);
-
+  const overview = useOverview(key, isAdmin && known); // the checklist's counts: one cheap read, refreshed by the writes that change them
+  // Opening a project starts loading every tab in the background, so switching tabs shows data at once instead of a wait.
+  useEffect(() => { if (known) prefetchProject(queryClient, key, isAdmin); }, [known, key, isAdmin, queryClient]);
+  const refreshing = useIsFetching({ queryKey: ["project", key] }) > 0; // something under this project is being read again, behind what is shown
   const tabs = [
     { value: "reviews", label: "Reviews", ...(project?.counts?.pending ? { count: project.counts.pending } : {}) },
     { value: "history", label: "History" },
@@ -53,7 +51,8 @@ export default function ProjectDetail() {
       <div>
         <Button as={Link} to="/projects" kind="text" size="sm" prefixIcon={<ArrowLeft />}>All projects</Button>
       </div>
-      {error && <Alert status="danger" kind="outlined">{error}</Alert>}
+      {loading && <LoadingRow text="Loading the project…" />}
+      {error && <Alert status="danger" kind="outlined">{error.message}</Alert>}
       {!loading && !error && !project && <Alert status="warning" kind="outlined">No such project, or you were not added to it.</Alert>}
       {project && (
         <>
@@ -64,21 +63,20 @@ export default function ProjectDetail() {
             </div>
             {links.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
+                <Updating active={refreshing} />
                 {links.map((l) => (
                   <Button key={l.label} as="a" href={l.href} target="_blank" rel="noreferrer" kind="outlined" size="sm" prefixIcon={l.icon} suffixIcon={<ExternalLink />}>{l.label}</Button>
                 ))}
               </div>
             )}
           </div>
-          {isAdmin && setup.data && (
-            <SetupChecklist project={project} tokens={setup.data[0]} members={setup.data[1]} reviews={setup.data[2]?.reviews?.length ?? 0} onGo={setTab} />
-          )}
+          {isAdmin && overview.data && <SetupChecklist project={project} overview={overview.data} onGo={setTab} />}
           <Tabs tabs={tabs} value={active} onChange={setTab} />
           {active === "reviews" && <ReviewsTab key={project.key} project={project} isAdmin={isAdmin} onGo={setTab} />}
           {active === "history" && <History project={project} />}
-          {active === "members" && isAdmin && <Members project={project} onChanged={changed} />}
-          {active === "tokens" && isAdmin && <Tokens project={project} reviewsCount={setup.data?.[2]?.reviews?.length ?? 0} onChanged={changed} onGo={setTab} />}
-          {active === "settings" && isAdmin && <Settings key={project.key} project={project} isAdmin={isAdmin} onSaved={() => { reload(); changed(); }} />}
+          {active === "members" && isAdmin && <Members project={project} />}
+          {active === "tokens" && isAdmin && <Tokens project={project} reviewsCount={overview.data?.reviews ?? 0} onGo={setTab} />}
+          {active === "settings" && isAdmin && <Settings key={project.key} project={project} isAdmin={isAdmin} />}
         </>
       )}
     </>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, ClipboardList, ExternalLink, Hourglass, ListChecks } from "lucide-react";
+import { CheckCircle2, ClipboardList, ExternalLink, Hourglass, ListChecks, RefreshCw } from "lucide-react";
 import { Alert } from "components/alert";
 import { Badge } from "components/badge";
 import { Button } from "components/button";
@@ -8,11 +8,10 @@ import { DataTable } from "components/data-table";
 import { EmptyState } from "components/empty-state";
 import { Select } from "components/select";
 import { StatCard } from "components/stat-card";
-import { api } from "app/api";
 import { CHOICES, STATUS } from "app/help";
+import { useReviews } from "app/queries";
 import { localDay, timeAgo } from "app/timeAgo";
-import { useLoad } from "app/useAsync";
-import { TabIntro } from "app/ui";
+import { LoadingRow, TabIntro, Updating } from "app/ui";
 
 const CHOICE = Object.fromEntries(CHOICES.map((c) => [c.value, c.label]));
 const FILTERS = [{ value: "all", label: "All" }, ...Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label }))];
@@ -22,7 +21,7 @@ const short = (text, n = 80) => (text.length > n ? `${text.slice(0, n)}...` : te
 
 /** Reviews of one project, newest first. Old reviews miss the newer fields; every one is optional here. */
 export function ReviewsTab({ project, isAdmin, onGo }) {
-  const { data, error } = useLoad(() => api("GET", `/projects/${project.key}/reviews`), [project.key]);
+  const { data, error, isLoading, isFetching, dataUpdatedAt, refetch } = useReviews(project.key);
   const [filter, setFilter] = useState("all");
   const today = localDay();
 
@@ -90,7 +89,8 @@ export function ReviewsTab({ project, isAdmin, onGo }) {
       <TabIntro icon={<ListChecks size={24} />} title="The queue: what needs a decision, and what is done">
         <p>Each row is a component that exists in code but differs from Figma. Reviewers decide on the review page; this table shows where each review stands, so nobody has to ask.</p>
       </TabIntro>
-      {error && <Alert status="danger" kind="outlined">{error}</Alert>}
+      {isLoading && <LoadingRow text="Loading reviews…" />}
+      {error && <Alert status="danger" kind="outlined">{error.message}</Alert>}
       {!project.reviewUrl && (
         <Alert status="info" kind="outlined" title="The review page link is not set">
           {isAdmin ? (
@@ -113,8 +113,13 @@ export function ReviewsTab({ project, isAdmin, onGo }) {
           <Card padded={false}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-default p-4">
               <p className="typo-semi-bold-text-base">Reviews{filter !== "all" && ` · ${rows.length} shown`}</p>
-              <div className="w-64">
-                <Select options={FILTERS} value={filter} onChange={(v) => setFilter(v || "all")} />
+              <div className="flex flex-wrap items-center gap-3">
+                <Updating active={isFetching} />
+                {!isFetching && dataUpdatedAt > 0 && <span className="text-caption typo-regular-text-sm">Updated {timeAgo(new Date(dataUpdatedAt).toISOString())}</span>}
+                <Button kind="text" size="sm" prefixIcon={<RefreshCw />} disabled={isFetching} onClick={() => refetch()}>Refresh</Button>
+                <div className="w-64">
+                  <Select options={FILTERS} value={filter} onChange={(v) => setFilter(v || "all")} />
+                </div>
               </div>
             </div>
             <DataTable

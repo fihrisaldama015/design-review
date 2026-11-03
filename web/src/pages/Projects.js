@@ -8,12 +8,14 @@ import { Card } from "components/card";
 import { EmptyState } from "components/empty-state";
 import { Field } from "components/field";
 import { Input } from "components/input";
-import { api, getSession } from "app/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { getSession } from "app/api";
+import { prefetchProject, useCreateProject, useProjects } from "app/queries";
 import { Collapse } from "app/Collapse";
-import { useLoad } from "app/useAsync";
-import { FieldHelp, TabIntro } from "app/ui";
+import { FieldHelp, LoadingRow, TabIntro } from "app/ui";
 
 function CreateProject({ onCreated }) {
+  const create = useCreateProject();
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   const [origin, setOrigin] = useState("");
@@ -25,7 +27,7 @@ function CreateProject({ onCreated }) {
     setBusy(true);
     setError("");
     try {
-      const project = await api("POST", "/projects", { key, name, allowedOrigins: origin.trim() ? [origin.trim()] : [] });
+      const project = await create.mutateAsync({ key, name, allowedOrigins: origin.trim() ? [origin.trim()] : [] });
       onCreated(project);
     } catch (err) {
       setError(err.message);
@@ -76,7 +78,7 @@ function CreateProject({ onCreated }) {
 
 const WarnChip = ({ children }) => <Badge tone="warning">{children}</Badge>;
 
-function ProjectCard({ project, isAdmin, onOpen }) {
+function ProjectCard({ project, isAdmin, onOpen, onPrefetch }) {
   const c = project.counts || {};
   const total = (c.pending || 0) + (c.answered || 0) + (c.applied || 0);
   return (
@@ -84,6 +86,8 @@ function ProjectCard({ project, isAdmin, onOpen }) {
       role="button"
       tabIndex={0}
       onClick={onOpen}
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
       onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onOpen(); } }}
       className="group cursor-pointer rounded-default transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
     >
@@ -120,7 +124,8 @@ function ProjectCard({ project, isAdmin, onOpen }) {
 export default function Projects() {
   const navigate = useNavigate();
   const isAdmin = getSession().user.role === "admin";
-  const { data, error, loading } = useLoad(() => api("GET", "/projects"), []);
+  const queryClient = useQueryClient();
+  const { data, error, isLoading: loading } = useProjects();
   const [creating, setCreating] = useState(false);
 
   return (
@@ -141,7 +146,8 @@ export default function Projects() {
           <p>The number on a card is how many reviews are waiting for an answer. Open the project, then use <strong>Open the review page</strong> to decide. Need help? Read the <Link to="/guide" className="text-primary underline">Guide</Link>.</p>
         )}
       </TabIntro>
-      {error && <Alert status="danger" kind="outlined">{error}</Alert>}
+      {loading && <LoadingRow text="Loading the projects…" />}
+      {error && <Alert status="danger" kind="outlined">{error.message}</Alert>}
       {isAdmin && (
         <Collapse open={creating}>
           <CreateProject onCreated={(p) => navigate(`/projects/${p.key}`)} />
@@ -159,7 +165,7 @@ export default function Projects() {
       )}
       {!loading && data && data.length > 0 && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {data.map((p) => <ProjectCard key={p.key} project={p} isAdmin={isAdmin} onOpen={() => navigate(`/projects/${p.key}`)} />)}
+          {data.map((p) => <ProjectCard key={p.key} project={p} isAdmin={isAdmin} onOpen={() => navigate(`/projects/${p.key}`)} onPrefetch={() => prefetchProject(queryClient, p.key, isAdmin)} />)}
         </div>
       )}
     </>
