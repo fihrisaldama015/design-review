@@ -24,6 +24,7 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
   const { data, error, reload } = useLoad(() => api("GET", `/projects/${project.key}/tokens`), [project.key]);
   const [label, setLabel] = useState("");
   const [created, setCreated] = useState(null);
+  const [secret, setSecret] = useState(""); // the token this page created: kept in memory only, so the next steps can fill it in. A refresh forgets it.
   const [copied, setCopied] = useState(false); // the new token was copied, or the person says it is saved
   const hasActive = (data ?? []).some((t) => !t.revokedAt);
   // Step 1 may only go on once a token exists and, for a new one, was copied: it is shown once.
@@ -32,7 +33,7 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
   const [busy, setBusy] = useState(false);
   const [toRevoke, setToRevoke] = useState(null);
   const [acting, setActing] = useState(false);
-  const snippets = connectSnippets({ origin: window.location.origin, project: project.key, reviewUrl: project.reviewUrl });
+  const snippets = connectSnippets({ origin: window.location.origin, project: project.key, token: secret });
 
   const create = async (e) => {
     e.preventDefault();
@@ -41,6 +42,7 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
     try {
       const res = await api("POST", `/projects/${project.key}/tokens`, { label });
       setCreated(res);
+      setSecret(res.token);
       setCopied(false);
       setLabel("");
       reload();
@@ -113,6 +115,7 @@ export function Tokens({ project, reviewsCount, onChanged, onGo }) {
                 <div className="flex flex-col gap-3">
                   <SecretAlert title={`New token: ${created.label}`} secret={created.token} noun="token" onCopy={() => setCopied(true)} onDismiss={copied ? () => setCreated(null) : undefined} />
                   <Checkbox label="I saved the token somewhere safe" description="Tick this if the Copy button does not work for you." checked={copied} onChange={(e) => setCopied(e.target.checked)} />
+                  <p className="text-caption typo-regular-text-sm">The next steps already contain this token, so you can copy each block as it is.</p>
                 </div>
               )}
             </form>

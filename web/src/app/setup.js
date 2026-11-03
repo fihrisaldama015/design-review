@@ -3,25 +3,35 @@
 
 const trim = (u) => String(u ?? "").replace(/\/+$/, "");
 
-export const TOKEN_PLACEHOLDER = "drp_PASTE_YOUR_TOKEN_HERE";
+// Not a token and not starting with drp_: a placeholder that looked like the start of a token made people paste "drp_drp_...".
+export const TOKEN_PLACEHOLDER = "PASTE_THE_WHOLE_TOKEN_HERE";
 
-/** The text to copy into the project: the tool's file or environment, and the review page's environment. */
-export function connectSnippets({ origin, project } = {}) {
+// A project token as the service makes it. Anything else is never put into a snippet.
+const isProjectToken = (t) => typeof t === "string" && /^drp_[A-Za-z0-9_-]+$/.test(t);
+
+/**
+ * The text to copy into the project: the tool's file or environment, and the review page's environment. When `token` is the one this page
+ * just created, it is already in the text (`hasToken`), so it can be copied in one go; otherwise the placeholder stands in.
+ */
+export function connectSnippets({ origin, project, token } = {}) {
   const serviceUrl = trim(origin);
   const apiUrl = `${serviceUrl}/api/v1`;
   const key = project || "<project key>";
+  const hasToken = isProjectToken(token);
+  const secret = hasToken ? token : TOKEN_PLACEHOLDER;
   return {
     serviceUrl,
     apiUrl,
+    hasToken,
     // .figma-dump/review-api.json on the machine that runs the Figma sync (per machine, never committed).
-    apiJson: JSON.stringify({ url: apiUrl, project: key, token: TOKEN_PLACEHOLDER }, null, 2),
+    apiJson: JSON.stringify({ url: apiUrl, project: key, token: secret }, null, 2),
     // The same three values as environment variables, for someone who prefers not to keep a file. All three are needed.
-    toolEnv: `REVIEW_API_URL=${apiUrl}\nREVIEW_PROJECT=${key}\nREVIEW_API_KEY=${TOKEN_PLACEHOLDER}`,
+    toolEnv: `REVIEW_API_URL=${apiUrl}\nREVIEW_PROJECT=${key}\nREVIEW_API_KEY=${secret}`,
     // The app that hosts the /review page reads these when it is built.
     pageEnv: `PUBLIC_REVIEW_SERVICE_URL=${serviceUrl}\nPUBLIC_REVIEW_PROJECT=${key}`,
     checkCommand: "node scripts/figma/reviewState.mjs",
     // The same check with nothing to install: asks the service for this project's reviews with the token.
-    checkCurl: `curl -s -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" ${apiUrl}/projects/${key}/reviews`,
+    checkCurl: `curl -s -H "Authorization: Bearer ${secret}" ${apiUrl}/projects/${key}/reviews`,
   };
 }
 

@@ -23,7 +23,9 @@ test("connectSnippets fills in the real address and project key, and never a rea
   assert.equal(s.pageEnv, "PUBLIC_REVIEW_SERVICE_URL=https://design-review-jet.vercel.app\nPUBLIC_REVIEW_PROJECT=mvp");
   assert.equal(s.checkCommand, "node scripts/figma/reviewState.mjs");
   assert.equal(s.checkCurl, `curl -s -H "Authorization: Bearer ${TOKEN_PLACEHOLDER}" https://design-review-jet.vercel.app/api/v1/projects/mvp/reviews`);
-  assert.ok(TOKEN_PLACEHOLDER.startsWith("drp_") && !/drp_[A-Za-z0-9]{20}/.test(s.apiJson));
+  assert.equal(s.hasToken, false);
+  assert.ok(!TOKEN_PLACEHOLDER.startsWith("drp_"), "a placeholder that starts with drp_ invites drp_drp_");
+  assert.ok(!/drp_[A-Za-z0-9]{8}/.test(s.apiJson + s.toolEnv + s.checkCurl));
 });
 
 test("connectSnippets uses a placeholder when the project is not known yet", () => {
@@ -51,4 +53,23 @@ test("setupChecklist ignores revoked tokens and survives missing data", () => {
   const c = setupChecklist(undefined, { tokens: [{ revokedAt: "2026-11-01" }] });
   assert.equal(c.items.find((i) => i.id === "token").done, false);
   assert.equal(setupChecklist(null, undefined).done, 0);
+});
+
+test("connectSnippets puts the token this page just created into every block that needs it", () => {
+  const token = "drp_AbC123-xyz_0987654321";
+  const s = connectSnippets({ origin: "http://localhost:5010", project: "mvp", token });
+  assert.equal(s.hasToken, true);
+  assert.equal(JSON.parse(s.apiJson).token, token);
+  assert.ok(s.toolEnv.endsWith(`REVIEW_API_KEY=${token}`));
+  assert.ok(s.checkCurl.includes(`Bearer ${token}"`));
+  assert.ok(!s.apiJson.includes(TOKEN_PLACEHOLDER) && !s.toolEnv.includes(TOKEN_PLACEHOLDER) && !s.checkCurl.includes(TOKEN_PLACEHOLDER));
+  assert.ok(!s.pageEnv.includes(token), "the review page's settings never contain the token");
+});
+
+test("connectSnippets ignores anything that is not a project token", () => {
+  for (const bad of ["", "not-a-token", "drp_", "drp_a b", 'drp_x"; rm -rf /', null, undefined, 5]) {
+    const s = connectSnippets({ origin: "http://x", project: "mvp", token: bad });
+    assert.equal(s.hasToken, false, String(bad));
+    assert.ok(s.toolEnv.includes(TOKEN_PLACEHOLDER));
+  }
 });

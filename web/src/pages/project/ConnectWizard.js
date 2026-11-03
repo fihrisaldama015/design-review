@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronDown, Monitor, Terminal } from "lu
 import { Button } from "components/button";
 import { Tabs } from "components/tabs";
 import { Collapse } from "app/Collapse";
+import { TOKEN_PLACEHOLDER } from "app/setup";
 import { CodeBlock } from "app/ui";
 
 const storeKey = (project) => `dr-setup-${project}`;
@@ -56,6 +57,8 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
   const [open, setOpen] = useState(firstOpen);
   const [where, setWhere] = useState("file");
   const [check, setCheck] = useState("curl");
+  // What to do with the token in a block: nothing when this page already filled it in, otherwise replace the placeholder.
+  const tokenHint = snippets.hasToken ? "Your new token is already in the block: copy it as it is." : `Replace ${TOKEN_PLACEHOLDER} with your token. It starts with drp_: paste all of it, including drp_.`;
 
   const next = (i) => {
     const set = new Set(confirmed).add(i);
@@ -87,6 +90,13 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
         </div>
       </div>
 
+      {snippets.hasToken && (
+        <div className="flex items-start gap-3 rounded-default border border-success p-3">
+          <Check size={18} strokeWidth={3} className="mt-0.5 shrink-0 text-success" />
+          <p className="typo-regular-text-sm"><strong>Your new token is filled into the steps below.</strong> It is kept only on this page: if you refresh or leave, it is gone and the blocks show a placeholder again.</p>
+        </div>
+      )}
+
       <ol className="flex flex-col gap-3">
         {row(0, { title: "Create a token", summary: active.length ? `${active.length} active token${active.length === 1 ? "" : "s"}` : "Not yet" }, <>
           <p className="typo-regular-text-sm">A token is the sync tool's password for this project. Create one for the place that will run the Figma sync, and copy it when it appears: it is shown once.</p>
@@ -105,12 +115,12 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
           <Tabs tabs={[{ value: "file", label: "A file (recommended)" }, { value: "env", label: "Environment variables" }]} value={where} onChange={setWhere} />
           {where === "file" ? (
             <>
-              <p className="typo-regular-text-sm">The sync runs on your computer, so the file lives there, in the project's folder. Replace the token placeholder with the token from step 1. The <code>.figma-dump</code> folder stays out of git: never commit a token.</p>
+              <p className="typo-regular-text-sm">The sync runs on your computer, so the file lives there, in the project's folder. {tokenHint} The <code>.figma-dump</code> folder stays out of git: never commit a token.</p>
               <CodeBlock title=".figma-dump/review-api.json" code={snippets.apiJson} note={'url is this service, project is this project\'s key. Optional: add a "reviewPage" line with the address of your review page (for example http://localhost:5002/review) so the tool\'s messages tell people where to answer.'} />
             </>
           ) : (
             <>
-              <p className="typo-regular-text-sm">The same three values, if you prefer not to keep a file: put them in your shell profile, or in the environment that starts Claude Code. All three are needed, and then you do not need the file.</p>
+              <p className="typo-regular-text-sm">The same three values, if you prefer not to keep a file: put them in your shell profile, or in the environment that starts Claude Code. All three are needed, and then you do not need the file. {tokenHint}</p>
               <CodeBlock title="Environment variables for the sync tool" code={snippets.toolEnv} />
             </>
           )}
@@ -120,7 +130,7 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
           <p className="typo-regular-text-sm">Run one of these in a terminal. The first needs nothing installed.</p>
           <Tabs tabs={[{ value: "curl", label: "With curl (nothing to install)" }, { value: "tool", label: "With the tool (needs the skill)" }]} value={check} onChange={setCheck} />
           {check === "curl" ? (
-            <CodeBlock title="Terminal" code={snippets.checkCurl} note={'Replace the placeholder with your token. A working token answers with {"reviews":[],"counts":{...}}. "Unknown or revoked project token" means the token is wrong.'} />
+            <CodeBlock title="Terminal" code={snippets.checkCurl} note={`${snippets.hasToken ? "Your token is already in the command." : `Replace ${TOKEN_PLACEHOLDER} with your token (all of it, including drp_).`} A working token answers with {"reviews":[],"counts":{...}}. "Unknown or revoked project token" means the token is wrong.`} />
           ) : (
             <CodeBlock title="Run in the project's folder" code={snippets.checkCommand} note="It lists the reviews waiting for an answer, or says it cannot reach the service." />
           )}
@@ -157,7 +167,7 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
           <CodeBlock
             title={where === "file" ? "For the sync tool: .figma-dump/review-api.json" : "For the sync tool: exported in the shell"}
             code={where === "file" ? snippets.apiJson : snippets.toolEnv}
-            note="Read by the sync tool, on your computer only. This is where the token lives."
+            note={snippets.hasToken ? "Read by the sync tool, on your computer only. This already contains the token you just created." : "Read by the sync tool, on your computer only. This is where the token lives."}
           />
           <CodeBlock title="For the review page: .env and your host's environment variables" code={snippets.pageEnv} note="Read by your app when it is built, on your computer and where it is deployed. No token." />
         </div>
