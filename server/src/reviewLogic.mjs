@@ -34,7 +34,7 @@ export const summary = (d) => ({ slug: slug(d.component), component: d.component
 const fail = (status, error, extra = {}) => ({ ok: false, status, error, ...extra });
 const done = (doc, status = 200) => ({ ok: true, status, doc });
 const HISTORY_MAX = 50;
-const PREVIEW = /^(https:\/\/\S|http:\/\/localhost(?:[:/?#]|$))/;
+export const PREVIEW = /^(https:\/\/\S|http:\/\/localhost(?:[:/?#]|$))/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NOTE_MAX = 500;
 

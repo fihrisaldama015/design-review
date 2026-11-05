@@ -11,6 +11,7 @@ const projectSchema = new Schema({
   figmaFileKey: String,
   storybookUrl: String,
   reviewUrl: String,
+  candidatePreviewUrl: String, // the deployment of the branch where Figma's changes are applied (figma-draft): the review page's right-hand frame
   allowedOrigins: { type: [String], default: [] },
   hasPreviewBuilds: { type: Boolean, default: false },
 }, opts);

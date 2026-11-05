@@ -3,6 +3,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { HttpError, hashPassword, newProjectToken, userView } from "../auth.mjs";
 import { clearOriginCache } from "../cors.mjs";
+import { PREVIEW } from "../reviewLogic.mjs";
 import { Project, Token, User, Membership, Review } from "../models.mjs";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
@@ -14,7 +15,7 @@ const generatePassword = (len = 14) =>
 
 const projectView = (p) => ({
   id: String(p._id), key: p.key, name: p.name, figmaFileKey: p.figmaFileKey, storybookUrl: p.storybookUrl,
-  reviewUrl: p.reviewUrl, allowedOrigins: p.allowedOrigins, hasPreviewBuilds: !!p.hasPreviewBuilds,
+  reviewUrl: p.reviewUrl, candidatePreviewUrl: p.candidatePreviewUrl || null, allowedOrigins: p.allowedOrigins, hasPreviewBuilds: !!p.hasPreviewBuilds,
 });
 
 function requireAdmin(req) {
@@ -62,6 +63,11 @@ function readFields(b, { partial }) {
   for (const f of ["figmaFileKey", "storybookUrl", "reviewUrl"]) {
     const v = f === "figmaFileKey" ? optString(b[f], f) : httpUrl(b[f], f);
     if (v !== undefined) out[f] = v;
+  }
+  if (b.candidatePreviewUrl !== undefined) {
+    const v = optString(b.candidatePreviewUrl, "candidatePreviewUrl");
+    if (v && !(isOrigin(v) && PREVIEW.test(v))) throw new HttpError(400, "candidatePreviewUrl must be an origin such as https://app-git-figma-draft.vercel.app or http://localhost:5003 (no path).");
+    out.candidatePreviewUrl = v;
   }
   if (b.allowedOrigins !== undefined || !partial) {
     const o = b.allowedOrigins ?? [];

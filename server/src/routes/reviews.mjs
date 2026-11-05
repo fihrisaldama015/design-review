@@ -75,11 +75,14 @@ export function reviewsRouter(env) {
     const reviews = rows.map((x) => summary(clean(x))).sort((a, b) => a.slug.localeCompare(b.slug));
     const counts = { pending: 0, answered: 0, applied: 0 };
     for (const s of reviews) counts[s.status] = (counts[s.status] || 0) + 1;
-    res.json({ reviews, counts });
+    // The project's candidate preview URL travels with the list: the sync tool reads it from here instead of a flag.
+    res.json({ reviews, counts, project: { candidatePreviewUrl: req.project.candidatePreviewUrl || null } });
   }));
 
   r.get("/projects/:project/reviews/:slug", wrap(async (req, res) => {
-    res.json(await mustExist(req));
+    const doc = await mustExist(req);
+    // A review published without its own previewUrl uses the project's current one, so setting it in the dashboard is enough.
+    res.json({ ...doc, previewUrl: doc.previewUrl ?? req.project.candidatePreviewUrl ?? null });
   }));
 
   r.put("/projects/:project/reviews/:slug", wrap(async (req, res) => {

@@ -340,3 +340,22 @@ test("deleting a project removes its reviews, tokens and member list, keeps acco
   assert.equal((await request(app).delete(`/api/v1/projects/${doomed.key}`).set(as(admin)).send({ confirm: doomed.key })).status, 404);
   assert.equal((await request(app).post("/api/v1/projects").set(as(admin)).send({ key: doomed.key, name: "Again" })).status, 201);
 });
+
+test("a project keeps a candidate preview URL; the list and a review carry it; a bad value is refused", async () => {
+  const admin = await makeAdmin();
+  const p = await makeProject({ key: `prev-${++k}` });
+  const patch = (b) => request(app).patch(`/api/v1/projects/${p.key}`).set(as(admin)).send(b);
+  assert.equal((await patch({ candidatePreviewUrl: "https://app-git-figma-draft.vercel.app" })).body.candidatePreviewUrl, "https://app-git-figma-draft.vercel.app");
+  assert.equal((await patch({ candidatePreviewUrl: "http://localhost:5003" })).status, 200);
+  for (const bad of ["ftp://x.io", "https://x.io/path", "http://example.com", "not a url"]) assert.equal((await patch({ candidatePreviewUrl: bad })).status, 400, bad);
+  const { token, hash } = newProjectToken();
+  await Token.create({ orgId: ORG, projectId: p._id, label: "t", hash });
+  const bearer = { Authorization: `Bearer ${token}` };
+  const list = await request(app).get(`/api/v1/projects/${p.key}/reviews`).set(bearer);
+  assert.equal(list.body.project.candidatePreviewUrl, "http://localhost:5003");
+  await request(app).put(`/api/v1/projects/${p.key}/reviews/select`).set(bearer).send({ component: "Select", sourceHash: "h", items: [] });
+  assert.equal((await request(app).get(`/api/v1/projects/${p.key}/reviews/select`).set(bearer)).body.previewUrl, "http://localhost:5003");
+  await request(app).put(`/api/v1/projects/${p.key}/reviews/select`).set(bearer).send({ component: "Select", sourceHash: "h2", items: [], previewUrl: "https://own.vercel.app" });
+  assert.equal((await request(app).get(`/api/v1/projects/${p.key}/reviews/select`).set(bearer)).body.previewUrl, "https://own.vercel.app");
+  assert.equal((await patch({ candidatePreviewUrl: null })).body.candidatePreviewUrl, null);
+});

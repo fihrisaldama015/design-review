@@ -18,6 +18,7 @@ export function Settings({ project, isAdmin }) {
     figmaFileKey: project.figmaFileKey || "",
     storybookUrl: project.storybookUrl || "",
     reviewUrl: project.reviewUrl || "",
+    candidatePreviewUrl: project.candidatePreviewUrl || "",
     origins: project.allowedOrigins.join("\n"),
   });
   const [error, setError] = useState("");
@@ -78,6 +79,16 @@ export function Settings({ project, isAdmin }) {
               <FieldHelp>
                 <p>It is the address of your app plus <code>/review</code>. Reviewers get an <strong>Open the review page</strong> button with it.</p>
                 <p>Open the review page of your app in the browser and copy the address from the address bar. On your own computer it is usually <code>http://localhost:5002/review</code>.</p>
+              </FieldHelp>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Field label="Candidate preview URL" hint="The app built from the branch where Figma's changes are applied (figma-draft).">
+                <Input value={form.candidatePreviewUrl} onChange={set("candidatePreviewUrl")} readOnly={!isAdmin} placeholder="https://app-git-figma-draft.vercel.app" />
+              </Field>
+              <FieldHelp>
+                <p>It is the right-hand frame of the review page ("With the Figma version"), and the only way to see what Figma <strong>adds</strong>: the current code does not have it yet.</p>
+                <p>Deploy the <code>figma-draft</code> branch (on Vercel the branch gets its own address, such as <code>https://app-git-figma-draft-team.vercel.app</code>), or run it on your computer (<code>http://localhost:5003</code>), and paste the address here: the origin only, no path.</p>
+                <p>The sync tool reads it from here and asks for it when a review needs it. Reviews published without their own preview address use this one.</p>
               </FieldHelp>
             </div>
             <div className="flex flex-col gap-2">
