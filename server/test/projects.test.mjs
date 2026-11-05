@@ -296,3 +296,47 @@ test("reset-password refuses a non-member, an admin account, a bad id and a revi
   const before = await User.findById(member._id);
   assert.equal(before.mustChangePassword, false);
 });
+
+test("deleting a project needs an admin and the project's own key", async () => {
+  const admin = await makeAdmin();
+  const member = await makeMember();
+  const b = body();
+  await request(app).post("/api/v1/projects").set(as(admin)).send(b);
+  const del = (who, confirm) => request(app).delete(`/api/v1/projects/${b.key}`).set(as(who)).send(confirm === undefined ? {} : { confirm });
+  assert.equal((await del(member, b.key)).status, 403);
+  assert.equal((await del(admin)).status, 400);
+  assert.equal((await del(admin, "other-key")).status, 400);
+  assert.equal((await del(admin, b.key.toUpperCase())).status, 400);
+  assert.ok(await Project.exists({ key: b.key }), "nothing was deleted by the refused calls");
+  assert.equal((await request(app).delete("/api/v1/projects/no-such").set(as(admin)).send({ confirm: "no-such" })).status, 404);
+});
+
+test("deleting a project removes its reviews, tokens and member list, keeps accounts and other projects, and frees the key", async () => {
+  const admin = await makeAdmin();
+  const member = await makeMember();
+  const doomed = await makeProject({ key: `doomed-${++k}` });
+  const other = await makeProject({ key: `other-${++k}` });
+  const { token, hash } = newProjectToken();
+  await Token.create({ orgId: ORG, projectId: doomed._id, label: "sync", hash });
+  await Token.create({ orgId: ORG, projectId: other._id, label: "keep", hash: newProjectToken().hash });
+  await Membership.create({ orgId: ORG, userId: member._id, projectId: doomed._id });
+  await Membership.create({ orgId: ORG, userId: member._id, projectId: other._id });
+  const put = (p, t) => request(app).put(`/api/v1/projects/${p.key}/reviews/select`).set({ Authorization: `Bearer ${t}` }).send({ component: "Select", sourceHash: "h", items: [] });
+  assert.ok([200, 201].includes((await put(doomed, token)).status));
+  await Review.create({ orgId: ORG, projectId: other._id, slug: "alert", component: "Alert", status: "pending" });
+
+  const res = await request(app).delete(`/api/v1/projects/${doomed.key}`).set(as(admin)).send({ confirm: doomed.key });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { deleted: { reviews: 1, tokens: 1, members: 1 } });
+  assert.equal(await Project.exists({ _id: doomed._id }), null);
+  assert.equal(await Review.countDocuments({ projectId: doomed._id }), 0);
+  assert.equal(await Token.countDocuments({ projectId: doomed._id }), 0);
+  assert.equal(await Membership.countDocuments({ projectId: doomed._id }), 0);
+  assert.ok(await User.exists({ _id: member._id }), "the account stays");
+  assert.equal(await Review.countDocuments({ projectId: other._id }), 1);
+  assert.equal(await Token.countDocuments({ projectId: other._id }), 1);
+  assert.equal(await Membership.countDocuments({ projectId: other._id, userId: member._id }), 1);
+  assert.equal((await put(doomed, token)).status, 401, "the old token no longer works");
+  assert.equal((await request(app).delete(`/api/v1/projects/${doomed.key}`).set(as(admin)).send({ confirm: doomed.key })).status, 404);
+  assert.equal((await request(app).post("/api/v1/projects").set(as(admin)).send({ key: doomed.key, name: "Again" })).status, 201);
+});

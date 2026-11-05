@@ -57,6 +57,12 @@ export const useSaveSettings = (k) => {
   // The saved project is shown at once, before the list is read again.
   return { ...write, mutateAsync: async (body) => { const saved = await write.mutateAsync(body); queryClient.setQueryData(keys.projects, (list) => list?.map((p) => (p.key === k ? { ...p, ...saved } : p))); return saved; } };
 };
+// Deleting a project is final: its cached reads are dropped (not just marked stale), and the list is read again.
+export const useDeleteProject = () => {
+  const queryClient = useQueryClient();
+  const write = useWrite((key) => api("DELETE", `/projects/${key}`, { confirm: key }), () => [keys.projects]);
+  return { ...write, mutateAsync: async (key) => { const r = await write.mutateAsync(key); queryClient.removeQueries({ queryKey: keys.project(key) }); return r; } };
+};
 export const useCreateToken = (k) => useWrite((label) => api("POST", `/projects/${k}/tokens`, { label }), () => [keys.tokens(k), keys.overview(k)]);
 export const useRevokeToken = (k) => useWrite((id) => api("DELETE", `/projects/${k}/tokens/${id}`), () => [keys.tokens(k), keys.overview(k)]);
 export const useAddMember = (k) => useWrite((body) => api("POST", `/projects/${k}/members`, body), () => [keys.members(k), keys.overview(k)]);

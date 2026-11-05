@@ -144,6 +144,23 @@ export function projectsRouter(env) {
     res.json(projectView(req.project));
   }));
 
+  // Deleting a project is the one thing here that cannot be undone, so the caller must send the project's own key as `confirm`
+  // (the dashboard asks the person to type it). The project goes last: if a step fails, the project still exists and the delete can be repeated.
+  // Accounts are not deleted: a user belongs to the organisation, a project only lists who may open it.
+  r.delete("/projects/:project", wrap(async (req, res) => {
+    const confirm = (req.body || {}).confirm;
+    if (confirm !== req.project.key) throw new HttpError(400, `To delete this project send its key "${req.project.key}" as confirm.`);
+    const projectId = req.project._id;
+    const deleted = {
+      reviews: (await Review.deleteMany({ projectId })).deletedCount,
+      tokens: (await Token.deleteMany({ projectId })).deletedCount,
+      members: (await Membership.deleteMany({ projectId })).deletedCount,
+    };
+    await Project.deleteOne({ _id: projectId });
+    clearOriginCache(); // its origins stop working at once
+    res.json({ deleted });
+  }));
+
   // The setup checklist needs only counts: one answer (four counts in parallel) instead of three lists.
   r.get("/projects/:project/overview", wrap(async (req, res) => {
     const base = { projectId: req.project._id, orgId: req.project.orgId };

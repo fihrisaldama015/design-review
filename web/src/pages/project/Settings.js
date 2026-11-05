@@ -8,6 +8,7 @@ import { Input } from "components/input";
 import { Textarea } from "components/textarea";
 import { useSaveSettings } from "app/queries";
 import { FieldHelp, SectionTitle, TabIntro } from "app/ui";
+import { DeleteProject } from "pages/project/DeleteProject";
 
 /** The settings of a project: its name, the links reviewers use, and the addresses allowed to talk to the service. */
 export function Settings({ project, isAdmin }) {
@@ -46,6 +47,7 @@ export function Settings({ project, isAdmin }) {
   };
 
   return (
+    <div className="flex flex-col gap-8">
     <form onSubmit={submit} className="flex flex-col gap-8">
       <TabIntro icon={<SettingsIcon size={24} />} title="How this project is named, linked and allowed to connect">
         <p>Only the name is required. The two things worth setting early are the <strong>review page link</strong> (so reviewers can open the page where they decide) and the <strong>allowed origins</strong> (without them the review page cannot talk to this service).</p>
@@ -123,5 +125,7 @@ export function Settings({ project, isAdmin }) {
         </div>
       )}
     </form>
+      {isAdmin && <DeleteProject project={project} />}
+    </div>
   );
 }
