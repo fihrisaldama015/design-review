@@ -166,7 +166,7 @@ export function ConnectWizard({ project, snippets, tokens, reviewsCount, createS
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h4 className="typo-semi-bold-text-base">At the end, your settings look like this</h4>
-          <p className="text-caption typo-regular-text-sm">Two programs read these settings: the sync tool (the <code>REVIEW_</code> lines, with the token) and your app's review page (the <code>PUBLIC_REVIEW_</code> lines, never the token). Only the <code>PUBLIC_</code> ones reach the browser.</p>
+          <p className="text-caption typo-regular-text-sm">Two programs read these settings: the sync tool (the <code>REVIEW_</code> lines, with the token) and your app's review page (the <code>PUBLIC_REVIEW_</code> lines, never the token). Only the <code>PUBLIC_</code> ones reach the browser. An app that reads them under another name (for example <code>REACT_APP_REVIEW_*</code>) maps them in its bundler config; the skill's installer says how, and <code>doctor</code> checks it.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {where === "env" ? (
