@@ -8,7 +8,7 @@ import { FaqList, SectionTitle, Step } from "app/ui";
 const FLOW = [
   { icon: <Upload size={28} />, title: "Figma and the code differ", text: "The developer runs the Figma sync. If a component in code no longer matches Figma, a review is sent here." },
   { icon: <Monitor size={28} />, title: "Reviewers look", text: "They see what changed, which pages of the app use it, and the app next to the Figma version." },
-  { icon: <Gavel size={28} />, title: "Reviewers decide", text: "Remove it, keep it as old, or keep it and add it to Figma. They can say why." },
+  { icon: <Gavel size={28} />, title: "Reviewers decide", text: "Remove it, keep it as old, or keep it as it is. They can say why. They decide only about what changes the look." },
   { icon: <BadgeCheck size={28} />, title: "The developer applies it", text: "The code follows the decision. The review turns Applied and the history keeps who decided what." },
 ];
 

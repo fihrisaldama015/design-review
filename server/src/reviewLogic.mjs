@@ -5,6 +5,8 @@ export const CHOICES = ["follow-figma", "keep-deprecated", "keep"];
 export const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const removals = (d) => d.items.filter((i) => i.kind.startsWith("removed"));
+// "code-only": a prop only the code has and that is not about the look. No decision, listed in the designer notes.
+const codeOnly = (d) => d.items.filter((i) => i.kind === "code-only");
 const unanswered = (d) => removals(d).filter((i) => !d.answers?.[i.id]).map((i) => i.id);
 export const statusOf = (d) => (d.status === "applied" ? "applied" : unanswered(d).length ? "pending" : "answered");
 // The audit entries of the current Figma cycle: after the last "published..." or "Figma changed..." entry ("republished" is not a marker).
@@ -28,7 +30,7 @@ function usageCount(d) {
   const by = d.usage?.byItem;
   return by && typeof by === "object" ? removals(d).reduce((n, i) => n + (Number(by[i.id]?.count) || 0), 0) : null;
 }
-export const summary = (d) => ({ slug: slug(d.component), component: d.component, status: d.status, removals: removals(d).length, unanswered: unanswered(d).length, additions: d.items.length - removals(d).length, figmaNode: d.figmaNode, readAt: d.readAt, updatedAt: d.updatedAt, version: d.version,
+export const summary = (d) => ({ slug: slug(d.component), component: d.component, status: d.status, removals: removals(d).length, unanswered: unanswered(d).length, additions: d.items.length - removals(d).length - codeOnly(d).length, codeOnly: codeOnly(d).length, figmaNode: d.figmaNode, readAt: d.readAt, updatedAt: d.updatedAt, version: d.version,
   jsxName: d.jsxName ?? null, answered: answeredIds(d).length, choices: [...new Set(answeredIds(d).map((id) => d.answers?.[id]))].sort(), lastDecision: lastDecision(d), deadline: deadline(d), usageCount: usageCount(d) });
 
 const fail = (status, error, extra = {}) => ({ ok: false, status, error, ...extra });

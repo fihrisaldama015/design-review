@@ -9,12 +9,12 @@ export const STATUS = {
 export const CHOICES = [
   { value: "follow-figma", label: "Remove it, to match Figma", meaning: "The option disappears from the component. Screens that use it lose it and the developers update them." },
   { value: "keep-deprecated", label: "Keep it, but mark it as old", meaning: "Screens that use it keep working until a date (migrate by). New screens do not get it by default." },
-  { value: "keep", label: "Keep it, and add it to Figma", meaning: "Nothing changes in the code. The design adds it to Figma so both match." },
+  { value: "keep", label: "Keep it", meaning: "Nothing changes in the code. Figma does not have to match: the code can have props of its own. It is listed in the designer notes." },
 ];
 
 export const GLOSSARY = [
   { term: "Review", meaning: "One component that exists in code but differs from Figma. It lists what is different and what each difference touches in the app." },
-  { term: "Decision", meaning: "What the reviewers choose for each difference: remove it, keep it as old, or keep it and add it to Figma. It is saved with who decided, when and why." },
+  { term: "Decision", meaning: "What the reviewers choose for each difference: remove it, keep it as old, or keep it as it is. Only differences that change the look are asked about. It is saved with who decided, when and why." },
   { term: "Project", meaning: "One app with its own Figma file, reviewers and settings. Every review belongs to a project." },
   { term: "Project token", meaning: "A secret that lets the sync tool publish reviews to one project. Only the tool uses it, never a person or a browser. It starts with drp_." },
   { term: "Member", meaning: "A person who can open a project's reviews and decide. Designers and product owners are members." },

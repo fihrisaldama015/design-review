@@ -17,7 +17,7 @@ test("eventLabel maps every known audit action and passes unknown text through",
 test("choiceLabel maps the three choices, null and unknown", () => {
   assert.equal(choiceLabel("follow-figma"), "Remove it, to match Figma");
   assert.equal(choiceLabel("keep-deprecated"), "Keep it, but mark it as old");
-  assert.equal(choiceLabel("keep"), "Keep it, and add it to Figma");
+  assert.equal(choiceLabel("keep"), "Keep it");
   assert.equal(choiceLabel(null), "Answer cleared");
   assert.equal(choiceLabel(undefined), "Answer cleared");
   assert.equal(choiceLabel("other"), "other");
@@ -36,7 +36,7 @@ test("changeLines lists one line per change with migrate by", () => {
   );
   assert.deepEqual(lines, [
     "searchable: Remove it, to match Figma, migrate by Select",
-    'kind="outlined": Keep it, and add it to Figma',
+    'kind="outlined": Keep it',
     "x: Answer cleared",
   ]);
 });

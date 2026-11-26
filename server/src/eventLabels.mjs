@@ -11,7 +11,7 @@ const EVENTS = {
 const CHOICES = {
   "follow-figma": "Remove it, to match Figma",
   "keep-deprecated": "Keep it, but mark it as old",
-  keep: "Keep it, and add it to Figma",
+  keep: "Keep it",
 };
 
 export const eventLabel = (action) => (typeof action === "string" ? (Object.hasOwn(EVENTS, action) ? EVENTS[action] : action) : "");

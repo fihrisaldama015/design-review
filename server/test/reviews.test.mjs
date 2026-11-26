@@ -315,7 +315,7 @@ test("history entries carry event and lines and keep the old fields", async () =
   assert.equal(decided.action, "decided");
   assert.equal(decided.event, "Decision saved");
   assert.equal(decided.kind, "decided");
-  assert.deepEqual(decided.lines, ["searchable: Keep it, and add it to Figma"]);
+  assert.deepEqual(decided.lines, ["searchable: Keep it"]);
   assert.deepEqual(decided.changes, { "removed-prop:searchable": "keep" });
   assert.equal(decided.by, "Dina");
   assert.equal(published.event, "Sent for review");
