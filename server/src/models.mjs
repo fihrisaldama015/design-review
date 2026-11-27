@@ -10,6 +10,7 @@ const projectSchema = new Schema({
   name: { type: String, required: true },
   figmaFileKey: String,
   storybookUrl: String,
+  designDocsUrl: String, // the design docs site (components, measured values): the review page links each component to <it>/components/<name>
   reviewUrl: String,
   candidatePreviewUrl: String, // the deployment of the branch where Figma's changes are applied (figma-draft): the review page's right-hand frame
   allowedOrigins: { type: [String], default: [] },

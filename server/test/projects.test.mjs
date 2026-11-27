@@ -149,25 +149,26 @@ test("adding a member twice keeps one membership and no new tempPassword", async
   assert.equal(await Membership.countDocuments({ userId: u._id }), 0);
 });
 
-test("reviewUrl and storybookUrl must be http(s) URLs; null or empty clears them", async () => {
+test("reviewUrl, storybookUrl and designDocsUrl must be http(s) URLs; null or empty clears them", async () => {
   const admin = await makeAdmin();
-  for (const field of ["reviewUrl", "storybookUrl"]) {
+  for (const field of ["reviewUrl", "storybookUrl", "designDocsUrl"]) {
     const bad = await request(app).post("/api/v1/projects").set(as(admin)).send(body({ [field]: "javascript:alert(1)" }));
     assert.equal(bad.status, 400);
     assert.equal(bad.body.error, `${field} must be an http(s) URL.`);
   }
   const created = await request(app).post("/api/v1/projects").set(as(admin))
-    .send(body({ reviewUrl: "https://app.example.com/review", storybookUrl: "http://localhost:6006" }));
+    .send(body({ reviewUrl: "https://app.example.com/review", storybookUrl: "http://localhost:6006", designDocsUrl: "https://docs.example.com" }));
   assert.equal(created.status, 201);
-  for (const field of ["reviewUrl", "storybookUrl"]) {
+  for (const field of ["reviewUrl", "storybookUrl", "designDocsUrl"]) {
     const bad = await request(app).patch(`/api/v1/projects/${created.body.key}`).set(as(admin)).send({ [field]: "javascript:alert(1)" });
     assert.equal(bad.status, 400);
     assert.equal(bad.body.error, `${field} must be an http(s) URL.`);
   }
-  const cleared = await request(app).patch(`/api/v1/projects/${created.body.key}`).set(as(admin)).send({ reviewUrl: null, storybookUrl: "" });
+  const cleared = await request(app).patch(`/api/v1/projects/${created.body.key}`).set(as(admin)).send({ reviewUrl: null, storybookUrl: "", designDocsUrl: "" });
   assert.equal(cleared.status, 200);
   assert.ok(!cleared.body.reviewUrl);
   assert.ok(!cleared.body.storybookUrl);
+  assert.ok(!cleared.body.designDocsUrl);
 });
 
 test("an origin added by create or PATCH works at once (origin cache cleared)", async () => {
@@ -358,4 +359,16 @@ test("a project keeps a candidate preview URL; the list and a review carry it; a
   await request(app).put(`/api/v1/projects/${p.key}/reviews/select`).set(bearer).send({ component: "Select", sourceHash: "h2", items: [], previewUrl: "https://own.vercel.app" });
   assert.equal((await request(app).get(`/api/v1/projects/${p.key}/reviews/select`).set(bearer)).body.previewUrl, "https://own.vercel.app");
   assert.equal((await patch({ candidatePreviewUrl: null })).body.candidatePreviewUrl, null);
+});
+
+test("the design docs URL travels with the list of reviews, like the candidate preview URL", async () => {
+  const admin = await makeAdmin();
+  const p = await makeProject({ key: `docs-${++k}` });
+  const patch = (b) => request(app).patch(`/api/v1/projects/${p.key}`).set(as(admin)).send(b);
+  assert.equal((await patch({ designDocsUrl: "https://docs.example.com" })).body.designDocsUrl, "https://docs.example.com");
+  const { token, hash } = newProjectToken();
+  await Token.create({ orgId: ORG, projectId: p._id, label: "t", hash });
+  const list = await request(app).get(`/api/v1/projects/${p.key}/reviews`).set({ Authorization: `Bearer ${token}` });
+  assert.equal(list.body.project.designDocsUrl, "https://docs.example.com");
+  assert.equal((await patch({ designDocsUrl: null })).body.designDocsUrl, null);
 });

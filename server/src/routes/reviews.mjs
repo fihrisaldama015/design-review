@@ -76,7 +76,7 @@ export function reviewsRouter(env) {
     const counts = { pending: 0, answered: 0, applied: 0 };
     for (const s of reviews) counts[s.status] = (counts[s.status] || 0) + 1;
     // The project's candidate preview URL travels with the list: the sync tool reads it from here instead of a flag.
-    res.json({ reviews, counts, project: { candidatePreviewUrl: req.project.candidatePreviewUrl || null } });
+    res.json({ reviews, counts, project: { candidatePreviewUrl: req.project.candidatePreviewUrl || null, designDocsUrl: req.project.designDocsUrl || null } });
   }));
 
   r.get("/projects/:project/reviews/:slug", wrap(async (req, res) => {

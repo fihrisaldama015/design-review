@@ -15,7 +15,7 @@ const generatePassword = (len = 14) =>
 
 const projectView = (p) => ({
   id: String(p._id), key: p.key, name: p.name, figmaFileKey: p.figmaFileKey, storybookUrl: p.storybookUrl,
-  reviewUrl: p.reviewUrl, candidatePreviewUrl: p.candidatePreviewUrl || null, allowedOrigins: p.allowedOrigins, hasPreviewBuilds: !!p.hasPreviewBuilds,
+  reviewUrl: p.reviewUrl, candidatePreviewUrl: p.candidatePreviewUrl || null, designDocsUrl: p.designDocsUrl || null, allowedOrigins: p.allowedOrigins, hasPreviewBuilds: !!p.hasPreviewBuilds,
 });
 
 function requireAdmin(req) {
@@ -60,7 +60,7 @@ function readFields(b, { partial }) {
     if (typeof name !== "string" || !name.trim()) throw new HttpError(400, "name is required.");
     out.name = name.trim();
   }
-  for (const f of ["figmaFileKey", "storybookUrl", "reviewUrl"]) {
+  for (const f of ["figmaFileKey", "storybookUrl", "reviewUrl", "designDocsUrl"]) {
     const v = f === "figmaFileKey" ? optString(b[f], f) : httpUrl(b[f], f);
     if (v !== undefined) out[f] = v;
   }

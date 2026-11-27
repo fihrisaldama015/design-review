@@ -17,6 +17,7 @@ export function Settings({ project, isAdmin }) {
     name: project.name,
     figmaFileKey: project.figmaFileKey || "",
     storybookUrl: project.storybookUrl || "",
+    designDocsUrl: project.designDocsUrl || "",
     reviewUrl: project.reviewUrl || "",
     candidatePreviewUrl: project.candidatePreviewUrl || "",
     origins: project.allowedOrigins.join("\n"),
@@ -107,6 +108,15 @@ export function Settings({ project, isAdmin }) {
               <FieldHelp>
                 <p>Open the deployed Storybook in the browser and copy the address up to the end of the host, without <code>/?path=…</code>. If it is hosted on Vercel, it is the project's domain.</p>
                 <p>Reviews link to the component's page there, so a reviewer can try the component.</p>
+              </FieldHelp>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Field label="Design docs URL" hint="Where the design docs site (the measured values of each component) is deployed.">
+                <Input value={form.designDocsUrl} onChange={set("designDocsUrl")} readOnly={!isAdmin} placeholder="https://design-docs.example.com" />
+              </Field>
+              <FieldHelp>
+                <p>The address of the deployed design docs, without a path. If it is hosted on Vercel, it is the project's domain.</p>
+                <p>The review page links each component to <code>&lt;this address&gt;/components/&lt;name&gt;</code>. Leave it empty and the link is not shown.</p>
               </FieldHelp>
             </div>
           </div>
